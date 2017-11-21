@@ -46,6 +46,7 @@ Contact: Tobias Rausch (rausch@embl.de)
 #include "align.h"
 #include "gotoh.h"
 #include "fmindex.h"
+#include "json.h"
 
 using namespace sdsl;
 using namespace sage;
@@ -55,6 +56,7 @@ struct Config {
   uint16_t trimRight;
   uint16_t filetype;   //0: *fa.gz, 1: *.fa, 2: *.ab1
   uint16_t kmer;
+  uint16_t maxindel;
   uint16_t linelimit;
   float pratio;
   std::string outprefix;
@@ -74,6 +76,7 @@ int main(int argc, char** argv) {
     ("genome,g", boost::program_options::value<boost::filesystem::path>(&c.genome), "(gzipped) fasta or wildtype ab1 file")
     ("pratio,p", boost::program_options::value<float>(&c.pratio)->default_value(0.33), "peak ratio to call base")
     ("kmer,k", boost::program_options::value<uint16_t>(&c.kmer)->default_value(15), "kmer size to anchor trace")
+    ("maxindel,m", boost::program_options::value<uint16_t>(&c.maxindel)->default_value(1000), "max. indel size in Sanger trace")
     ("trimLeft,l", boost::program_options::value<uint16_t>(&c.trimLeft)->default_value(50), "trim size left")
     ("trimRight,r", boost::program_options::value<uint16_t>(&c.trimRight)->default_value(50), "trim size right")
     ;
@@ -106,6 +109,7 @@ int main(int argc, char** argv) {
     std::cout << visible_options << "\n";
     return -1;
   }
+  if (c.maxindel < 1) c.maxindel = 1;
 
   // Check reference
   if (!(boost::filesystem::exists(c.genome) && boost::filesystem::is_regular_file(c.genome) && boost::filesystem::file_size(c.genome))) {
@@ -137,16 +141,38 @@ int main(int argc, char** argv) {
   // Find reference match
   if (!getReferenceSlice(c, fm_index, bc, rs)) return -1;
 
-  // Alignments
+  // Semi-global alignment
   typedef boost::multi_array<char, 2> TAlign;
   TAlign align;
   AlignConfig<true, false> semiglobal;
   DnaScore<int> sc(5, -4, -10, -1);
-  gotoh(bc.primary, rs.refslice, align, semiglobal, sc);
-  plotAlignment(c, align, rs, 1);
+  std::string trace = bc.primary;
+  if (trace.size() > (c.trimLeft + c.trimRight)) trace = trace.substr(c.trimLeft, trace.size() - (c.trimLeft + c.trimRight));
+  gotoh(trace, rs.refslice, align, semiglobal, sc);
+
+  // Debug Alignment
+  //for(uint32_t i = 0; i<align.shape()[0]; ++i) {
+  //for(uint32_t j = 0; j<align.shape()[1]; ++j) std::cerr << align[i][j];
+  //std::cerr << std::endl;
+  //}
+  
+  // Trim initial reference slice
+  trimReferenceSlice(align, rs);
+
+  // Global alignment
+  typedef boost::multi_array<char, 2> TAlign;
+  TAlign final;
+  AlignConfig<false, false> global;
+  gotoh(trace, rs.refslice, final, global, sc);
+
+  // Debug Alignment
+  //for(uint32_t i = 0; i<final.shape()[0]; ++i) {
+  //for(uint32_t j = 0; j<final.shape()[1]; ++j) std::cerr << final[i][j];
+  //std::cerr << std::endl;
+  //}
   
   // Output
-  teal::traceJsonOut(c.outfile.string(), bc, tr);
+  traceAlignJsonOut(c.outfile.string(), bc, tr, rs, final);
   
   now = boost::posix_time::second_clock::local_time();
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Done." << std::endl;
