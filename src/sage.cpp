@@ -43,6 +43,8 @@ Contact: Tobias Rausch (rausch@embl.de)
 #include <htslib/faidx.h>
 
 #include "abif.h"
+#include "align.h"
+#include "gotoh.h"
 #include "fmindex.h"
 
 using namespace sdsl;
@@ -54,8 +56,8 @@ struct Config {
   uint16_t filetype;   //0: *fa.gz, 1: *.fa, 2: *.ab1
   uint16_t kmer;
   uint16_t linelimit;
-  uint16_t madc;
   float pratio;
+  std::string outprefix;
   boost::filesystem::path outfile;
   boost::filesystem::path ab;
   boost::filesystem::path genome;
@@ -63,6 +65,7 @@ struct Config {
 
 int main(int argc, char** argv) {
   Config c;
+  c.outprefix = "bla";
   
   // Parameter
   boost::program_options::options_description generic("Generic options");
@@ -70,7 +73,7 @@ int main(int argc, char** argv) {
     ("help,?", "show help message")
     ("genome,g", boost::program_options::value<boost::filesystem::path>(&c.genome), "(gzipped) fasta or wildtype ab1 file")
     ("pratio,p", boost::program_options::value<float>(&c.pratio)->default_value(0.33), "peak ratio to call base")
-    ("kmer,k", boost::program_options::value<uint16_t>(&c.kmer)->default_value(15), "kmer size")
+    ("kmer,k", boost::program_options::value<uint16_t>(&c.kmer)->default_value(15), "kmer size to anchor trace")
     ("trimLeft,l", boost::program_options::value<uint16_t>(&c.trimLeft)->default_value(50), "trim size left")
     ("trimRight,r", boost::program_options::value<uint16_t>(&c.trimRight)->default_value(50), "trim size right")
     ;
@@ -83,7 +86,6 @@ int main(int argc, char** argv) {
 
   boost::program_options::options_description hidden("Hidden options");
   hidden.add_options()
-    ("madc,c", boost::program_options::value<uint16_t>(&c.madc)->default_value(5), "MAD cutoff")
     ("input-file", boost::program_options::value<boost::filesystem::path>(&c.ab), "ab1")
     ;
 
@@ -134,7 +136,14 @@ int main(int argc, char** argv) {
 
   // Find reference match
   if (!getReferenceSlice(c, fm_index, bc, rs)) return -1;
-  
+
+  // Alignments
+  typedef boost::multi_array<char, 2> TAlign;
+  TAlign align;
+  AlignConfig<true, false> semiglobal;
+  DnaScore<int> sc(5, -4, -10, -1);
+  gotoh(bc.primary, rs.refslice, align, semiglobal, sc);
+  plotAlignment(c, align, rs, 1);
   
   // Output
   teal::traceJsonOut(c.outfile.string(), bc, tr);
