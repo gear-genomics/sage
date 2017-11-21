@@ -43,13 +43,14 @@ Contact: Tobias Rausch (rausch@embl.de)
 #include <htslib/faidx.h>
 
 #include "abif.h"
-//#include "refslice.h"
-//#include "align.h"
-//#include "gotoh.h"
+#include "fmindex.h"
 
 using namespace sdsl;
+using namespace sage;
 
 struct Config {
+  uint16_t trimLeft;
+  uint16_t trimRight;
   uint16_t filetype;   //0: *fa.gz, 1: *.fa, 2: *.ab1
   uint16_t kmer;
   uint16_t linelimit;
@@ -70,6 +71,8 @@ int main(int argc, char** argv) {
     ("genome,g", boost::program_options::value<boost::filesystem::path>(&c.genome), "(gzipped) fasta or wildtype ab1 file")
     ("pratio,p", boost::program_options::value<float>(&c.pratio)->default_value(0.33), "peak ratio to call base")
     ("kmer,k", boost::program_options::value<uint16_t>(&c.kmer)->default_value(15), "kmer size")
+    ("trimLeft,l", boost::program_options::value<uint16_t>(&c.trimLeft)->default_value(50), "trim size left")
+    ("trimRight,r", boost::program_options::value<uint16_t>(&c.trimRight)->default_value(50), "trim size right")
     ;
 
   boost::program_options::options_description otp("Output options");
@@ -97,9 +100,15 @@ int main(int argc, char** argv) {
 
   // Check command line arguments
   if ((vm.count("help")) || (!vm.count("input-file"))) {
-    std::cout << "Usage: " << argv[0] << " [OPTIONS] trace.ab1" << std::endl;
+    std::cout << "Usage: " << argv[0] << " [OPTIONS] -g genome.fa trace.ab1" << std::endl;
     std::cout << visible_options << "\n";
     return -1;
+  }
+
+  // Check reference
+  if (!(boost::filesystem::exists(c.genome) && boost::filesystem::is_regular_file(c.genome) && boost::filesystem::file_size(c.genome))) {
+    std::cerr << "Reference file is missing: " << c.genome.string() << std::endl;
+    return 1;
   }
 
   // Show cmd
@@ -118,6 +127,15 @@ int main(int argc, char** argv) {
   teal::BaseCalls bc;
   teal::basecall(tr, bc, c.pratio);
 
+  // Load reference
+  csa_wt<> fm_index;
+  ReferenceSlice rs;
+  if (!loadFMIdx(c, rs, fm_index)) return -1;
+
+  // Find reference match
+  if (!getReferenceSlice(c, fm_index, bc, rs)) return -1;
+  
+  
   // Output
   teal::traceJsonOut(c.outfile.string(), bc, tr);
   
