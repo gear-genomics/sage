@@ -57,7 +57,6 @@ struct Config {
   uint16_t filetype;   //0: *fa.gz, 1: *.fa, 2: *.ab1
   uint16_t kmer;
   uint16_t maxindel;
-  uint16_t linelimit;
   float pratio;
   std::string outprefix;
   boost::filesystem::path outfile;
@@ -84,7 +83,6 @@ int main(int argc, char** argv) {
   boost::program_options::options_description otp("Output options");
   otp.add_options()
     ("output,o", boost::program_options::value<boost::filesystem::path>(&c.outfile)->default_value("out.json"), "output file")
-    ("linelimit,l", boost::program_options::value<uint16_t>(&c.linelimit)->default_value(60), "alignment line length")
     ;
 
   boost::program_options::options_description hidden("Hidden options");
@@ -139,9 +137,13 @@ int main(int argc, char** argv) {
   if (!loadFMIdx(c, rs, fm_index)) return -1;
 
   // Find reference match
+  now = boost::posix_time::second_clock::local_time();
+  std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Find reference match" << std::endl;
   if (!getReferenceSlice(c, fm_index, bc, rs)) return -1;
 
   // Semi-global alignment
+  now = boost::posix_time::second_clock::local_time();
+  std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Alignment" << std::endl;
   typedef boost::multi_array<char, 2> TAlign;
   TAlign align;
   AlignConfig<true, false> semiglobal;
@@ -172,6 +174,8 @@ int main(int argc, char** argv) {
   //}
   
   // Output
+  now = boost::posix_time::second_clock::local_time();
+  std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Json output" << std::endl;
   traceAlignJsonOut(c.outfile.string(), bc, tr, rs, final);
   
   now = boost::posix_time::second_clock::local_time();
