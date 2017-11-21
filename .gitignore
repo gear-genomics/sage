@@ -1,3 +1,10 @@
+.sdsl
+.htslib
+.boost
+src/sdslLite/
+src/sage
+
+
 # Prerequisites
 *.d
 
