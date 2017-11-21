@@ -55,7 +55,7 @@ struct Config {
   uint16_t linelimit;
   uint16_t madc;
   float pratio;
-  std::string outprefix;
+  boost::filesystem::path outfile;
   boost::filesystem::path ab;
   boost::filesystem::path genome;
 };
@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
 
   boost::program_options::options_description otp("Output options");
   otp.add_options()
-    ("output,o", boost::program_options::value<std::string>(&c.outprefix)->default_value("align"), "output file prefix")
+    ("output,o", boost::program_options::value<boost::filesystem::path>(&c.outfile)->default_value("out.json"), "output file")
     ("linelimit,l", boost::program_options::value<uint16_t>(&c.linelimit)->default_value(60), "alignment line length")
     ;
 
@@ -111,6 +111,15 @@ int main(int argc, char** argv) {
   // Load *.ab1 file
   now = boost::posix_time::second_clock::local_time();
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Load ab1 file" << std::endl;
+  teal::Trace tr;
+  if (!teal::readab(c.ab.string(), tr)) return -1;
+
+  // Call bases
+  teal::BaseCalls bc;
+  teal::basecall(tr, bc, c.pratio);
+
+  // Output
+  teal::traceJsonOut(c.outfile.string(), bc, tr);
   
   now = boost::posix_time::second_clock::local_time();
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Done." << std::endl;
