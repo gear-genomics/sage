@@ -90,7 +90,7 @@ namespace sage
 	  store_to_file(fm_index, index_file);
 	  boost::filesystem::remove(outfile);
 	}
-      } else if (std::string(fcode) == "ABIF") {
+      } else if ((fcode[0] == 'A') && (fcode[1] == 'B') && (fcode[2] == 'I') && (fcode[3] == 'F')) {
 	rs.filetype = 2;
 	
 	boost::posix_time::ptime now = boost::posix_time::second_clock::local_time();
@@ -234,7 +234,7 @@ namespace sage
     // Get sequence lengths
     std::vector<uint32_t> seqlen;
     faidx_t* fai = NULL;
-    if (c.filetype) {
+    if (rs.filetype) {
       seqlen.push_back(rs.refslice.size());
     } else {
       fai = fai_load(c.genome.string().c_str());
@@ -293,7 +293,7 @@ namespace sage
     int64_t cumsum = 0;
     uint32_t refIndex = 0;
     for(; bestPos >= cumsum + seqlen[refIndex]; ++refIndex) cumsum += seqlen[refIndex];
-    if (!c.filetype) rs.chr = std::string(faidx_iseq(fai, refIndex));
+    if (!rs.filetype) rs.chr = std::string(faidx_iseq(fai, refIndex));
     uint32_t chrpos = bestPos - cumsum;
     int32_t slen = -1;
     uint32_t slicestart = 0;
@@ -301,7 +301,7 @@ namespace sage
     if (chrpos > c.maxindel) slicestart = chrpos - c.maxindel;
     uint32_t tmpend = chrpos + bc.consensus.size() + c.maxindel;
     if (tmpend < seqlen[refIndex]) sliceend = tmpend;
-    if (!c.filetype) {
+    if (!rs.filetype) {
       rs.pos = slicestart;
       char* seq = faidx_fetch_seq(fai, rs.chr.c_str(), slicestart, sliceend, &slen);
       rs.refslice = boost::to_upper_copy(std::string(seq));

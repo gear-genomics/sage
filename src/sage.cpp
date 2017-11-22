@@ -55,7 +55,6 @@ struct Config {
   uint16_t linelimit;
   uint16_t trimLeft;
   uint16_t trimRight;
-  uint16_t filetype;   //0: *fa.gz, 1: *.fa, 2: *.ab1
   uint16_t kmer;
   uint16_t maxindel;
   float pratio;
