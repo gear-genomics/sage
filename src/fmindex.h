@@ -321,7 +321,7 @@ namespace sage
   inline void
   plotAlignment(TConfig const& c, TAlign const& align, ReferenceSlice const& rs) {
     typedef typename TAlign::index TAIndex;
-    int32_t ri = rs.pos;
+    int32_t ri = rs.pos + 1;
     int32_t riend = rs.pos + rs.refslice.size();
     int32_t vi = 1;
     
