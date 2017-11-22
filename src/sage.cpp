@@ -52,6 +52,7 @@ using namespace sdsl;
 using namespace sage;
 
 struct Config {
+  uint16_t linelimit;
   uint16_t trimLeft;
   uint16_t trimRight;
   uint16_t filetype;   //0: *fa.gz, 1: *.fa, 2: *.ab1
@@ -59,6 +60,7 @@ struct Config {
   uint16_t maxindel;
   float pratio;
   std::string outprefix;
+  boost::filesystem::path align;
   boost::filesystem::path outfile;
   boost::filesystem::path ab;
   boost::filesystem::path genome;
@@ -82,6 +84,8 @@ int main(int argc, char** argv) {
 
   boost::program_options::options_description otp("Output options");
   otp.add_options()
+    ("linelimit,l", boost::program_options::value<uint16_t>(&c.linelimit)->default_value(60), "alignment line length")
+    ("align,a", boost::program_options::value<boost::filesystem::path>(&c.align)->default_value("out.align"), "output alignment")
     ("output,o", boost::program_options::value<boost::filesystem::path>(&c.outfile)->default_value("out.json"), "output file")
     ;
 
@@ -172,6 +176,7 @@ int main(int argc, char** argv) {
   //for(uint32_t j = 0; j<final.shape()[1]; ++j) std::cerr << final[i][j];
   //std::cerr << std::endl;
   //}
+  plotAlignment(c, final, rs);
   
   // Output
   now = boost::posix_time::second_clock::local_time();

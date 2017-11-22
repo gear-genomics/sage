@@ -317,27 +317,108 @@ namespace sage
   }
 
 
-template<typename TAlign>
-inline void
-trimReferenceSlice(TAlign const& align, ReferenceSlice& rs) {
-  typedef typename TAlign::index TAIndex;
-  uint32_t ri = 0;
-  int32_t s = -1;
-  int32_t e = -1;
-  for(TAIndex j = 0; j< (TAIndex) align.shape()[1]; ++j) {
-    if (align[0][j] != '-') {
-      if (s == -1) s = j;
-      e = j + 1;
+  template<typename TConfig, typename TAlign>
+  inline void
+  plotAlignment(TConfig const& c, TAlign const& align, ReferenceSlice const& rs) {
+    typedef typename TAlign::index TAIndex;
+    int32_t ri = rs.pos;
+    int32_t riend = rs.pos + rs.refslice.size();
+    int32_t vi = 1;
+    
+    uint32_t fald = c.linelimit + 14;
+    std::ofstream ofile(c.align.string().c_str());
+    ofile << ">Alt" << std::endl;
+    int32_t count = 0;
+    for(TAIndex j = 0; j< (TAIndex) align.shape()[1]; ++j) {
+      if (align[0][j] != '-')  {
+	ofile << align[0][j];
+	if ((count+1) % fald == 0) ofile << std::endl;
+	++count;
+      }
     }
-    if ((s == -1) && (align[1][j] != '-')) ++ri;
+    if (count % fald != 0) ofile << std::endl;
+    if (rs.forward) ofile << ">Ref " << rs.chr << ":" << ri << "-" << riend << " forward" << std::endl;
+    else ofile << ">Ref " << rs.chr << ":" << rs.pos + rs.refslice.size() - (riend - rs.pos) + 1 << "-" << rs.pos + rs.refslice.size() - (ri - rs.pos) + 1 << " reversecomplement" << std::endl;
+    count = 0;
+    for(TAIndex j = 0; j< (TAIndex) align.shape()[1]; ++j) {
+      if (align[1][j] != '-') {
+	ofile << align[1][j];
+	if ((count+1)% fald == 0) ofile << std::endl;
+	++count;
+      }
+    }
+    if (count % fald != 0) ofile << std::endl;
+    ofile << std::endl;
+    ofile << "#";
+    for(uint32_t i = 1; i < fald; ++i) ofile << "-";
+    ofile << std::endl;
+    ofile << std::endl;
+    
+    uint32_t blockcount = 0;
+    int32_t s = 0;
+    int32_t e = (TAIndex) align.shape()[1];
+    while (s < e) {
+      ofile << "Alt" << std::setw(10) << vi << ' ';
+      for(TAIndex j = s; ((j < (TAIndex) e) && (j < s + c.linelimit)); ++j) {
+	ofile << align[0][j];
+	if (align[0][j] != '-') ++vi;
+      }
+      ofile << std::endl;
+      ofile << "              ";
+      for(TAIndex j = s; ((j < (TAIndex) e) && (j < s + c.linelimit)); ++j) {
+	if (align[0][j] == align[1][j]) ofile << "|";
+	else ofile << " ";
+      }
+      ofile << std::endl;
+      if (rs.forward) ofile << "Ref" << std::setw(10) << ri << ' ';
+      else ofile << "Ref" << std::setw(10) << rs.pos + rs.refslice.size() - (ri - rs.pos) + 1 << ' ';
+      for(TAIndex j = s; ((j < (TAIndex) e) && (j < s + c.linelimit)); ++j) {
+	ofile << align[1][j];
+	if (align[1][j] != '-') ++ri;
+      }
+      ofile << std::endl;
+      ofile << std::endl;
+      s += c.linelimit;
+      ++blockcount;
+    }
+    if (blockcount < 6) {
+      // Add spacer for small alignments
+      for(uint32_t i = blockcount; i < 6; ++i) {
+	for(uint32_t k = 0; k<4; ++k) ofile << std::endl;
+      }
+    }
+    ofile << "#";
+    for(uint32_t i = 1; i < fald; ++i) ofile << "-";
+    ofile << std::endl;
+    ofile << "#";
+    for(uint32_t i = 1; i < fald; ++i) ofile << "-";
+    ofile << std::endl;
+    ofile << std::endl;
+    ofile << std::endl;
+    ofile.close();
   }
-  uint32_t risize = 0;
-  for(TAIndex j = s; j < (TAIndex) e; ++j) {
-    if (align[1][j] != '-') ++risize;
+
+  template<typename TAlign>
+  inline void
+  trimReferenceSlice(TAlign const& align, ReferenceSlice& rs) {
+    typedef typename TAlign::index TAIndex;
+    uint32_t ri = 0;
+    int32_t s = -1;
+    int32_t e = -1;
+    for(TAIndex j = 0; j< (TAIndex) align.shape()[1]; ++j) {
+      if (align[0][j] != '-') {
+	if (s == -1) s = j;
+	e = j + 1;
+      }
+      if ((s == -1) && (align[1][j] != '-')) ++ri;
+    }
+    uint32_t risize = 0;
+    for(TAIndex j = s; j < (TAIndex) e; ++j) {
+      if (align[1][j] != '-') ++risize;
+    }
+    rs.refslice = rs.refslice.substr(ri, risize);
+    rs.pos += ri;
   }
-  rs.refslice = rs.refslice.substr(ri, risize);
-  rs.pos += ri;
-}
   
 
 
