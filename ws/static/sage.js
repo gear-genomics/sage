@@ -175,7 +175,10 @@ function tealDisplayTextSeq (tr) {
         seq += base.charAt(pos + 1);
     }
     var outField = document.getElementById('teal-fastaText')
-    outField.value = seq;
+    outField.value = seq.replace(/-/g,"");
+    var ref = tr.refalign;
+    var outField2 = document.getElementById('teal-refText')
+    outField2.value = ref.replace(/-/g,"");
 }
 
 function tealDigShowSVG(svg, x, y) {
@@ -211,6 +214,15 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
     retVal += "<line x1='" + lineXst + "' y1='" + lineYst;
     retVal += "' x2='" + lineXst + "' y2='" + lineYend + "' stroke-width='2' stroke='black' stroke-linecap='square'/>";
 
+    var ref = "";
+    var abi = "";
+    for (var i = 0; i < 50; i++) {
+        ref += "-";
+        abi += "-";
+    }
+    ref += tr.refalign;
+    abi += tr.queryalign;
+
     // The X-Axis
     for (var i = 0; i < tr.basecallPos.length; i++) {
         if ((parseFloat(tr.basecallPos[i]) > startX) &&
@@ -222,6 +234,16 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
             retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end' transform='rotate(-90 ";
             retVal += (xPos + 3) + "," + (lineYend + 11) + ")'>";
             retVal += tr.basecalls[tr.basecallPos[i]] + "</text>";
+
+            if (!(ref.charAt(i) === abi.charAt(i))) {
+                retVal += "<rect x='" + (xPos - 5) + "' y='" + (lineYend + 63);
+                retVal += "' width='10' height='10' style='fill:red;stroke-width:3;stroke:red' />";
+            }
+
+            retVal += "<text x='" + (xPos + 3) + "' y='" + (lineYend + 71);
+            retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
+            retVal += ref.charAt(i) + "</text>";
+
         } 
     }
     // The Y-Axis
@@ -236,8 +258,8 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
         retVal += (i * yStep) + "</text>";
     }
    
-    var sqrY = wdYend + 70;
-    var txtY = wdYend + 81;
+    var sqrY = wdYend + 90;
+    var txtY = wdYend + 101;
     retVal += "<rect x='400' y='" + sqrY + "' width='10' height='10' style='fill:green;stroke-width:3;stroke:green' />";
     retVal += "<text x='417' y='" + txtY + "' font-family='Arial' font-size='18' fill='black'>A</text>";
     retVal += "<rect x='450' y='" + sqrY + "' width='10' height='10' style='fill:blue;stroke-width:3;stroke:blue' />";
@@ -259,11 +281,21 @@ function tealCreateAllCalls(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
 }
 
 function tealCreateOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
-    var retVal = "<polyline fill='none' stroke-linejoin='round' stroke='" + col[0];
-    retVal += "' stroke-width='" + col[1] + "' points='";
+    var startTag = "<polyline fill='none' stroke-linejoin='round' stroke='" + col[0];
+    startTag += "' stroke-width='" + col[1] + "' points='";
+    var retVal = "";
+    var lastVal = -99;
     for (var i = startX; i < endX; i++) {
         if(!(typeof trace[i] === 'undefined')){
-            var iden = parseFloat(trace[i]) / endY;
+            var iden = parseFloat(trace[i]);
+            if ((lastVal < -90) && (iden > -90)) {
+                retVal += startTag;
+            }
+            if ((lastVal > -90) && (iden < -90)) {
+                retVal += "'/>";
+            }
+            lastVal = iden;
+            iden = parseFloat(trace[i]) / endY;
             if (iden > 1.0) {
                 iden = 1;
             }
@@ -272,7 +304,9 @@ function tealCreateOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend
             retVal += xPos + "," + yPos + " ";
         } 
     }
-    retVal += "'/>";
+    if (lastVal > -90) {
+        retVal += "'/>";
+    }
     return retVal;
 }
 

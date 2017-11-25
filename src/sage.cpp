@@ -181,7 +181,8 @@ int main(int argc, char** argv) {
   teal::Trace ntr;
  
   gappyFuct(nbc, ntr, bc, tr, final);
- 
+//  reverseAbi(nbc, ntr, bc, tr); 
+
   // Output
   now = boost::posix_time::second_clock::local_time();
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Json output" << std::endl;

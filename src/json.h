@@ -58,7 +58,7 @@ namespace sage
 
   template<typename TAlign>
   inline void
-  gappyFuct( teal::BaseCalls& nbc,  teal::Trace& ntr, teal::BaseCalls& bc, teal::Trace const& tr, TAlign const& align) {
+  gappyFuct( teal::BaseCalls& nbc, teal::Trace& ntr, teal::BaseCalls& bc, teal::Trace const& tr, TAlign const& align) {
     int abioffset = 49;
    
     typedef teal::Trace::TMountains TMountains; 
@@ -139,6 +139,7 @@ namespace sage
                     ntr.traceACGT[3].push_back(-99);
                 }
             }
+            offset++;
             ntr.traceACGT[0].push_back(tr.traceACGT[0][i]);
             ntr.traceACGT[1].push_back(tr.traceACGT[1][i]);
             ntr.traceACGT[2].push_back(tr.traceACGT[2][i]);
@@ -149,6 +150,37 @@ namespace sage
         }
     }
   }
+
+  inline void
+  reverseAbi( teal::BaseCalls& nbc, teal::Trace& ntr, teal::BaseCalls& bc, teal::Trace const& tr) {
+
+    typedef teal::Trace::TMountains TMountains;
+    typedef teal::Trace::TValue TValue;
+
+    // Rewrite the arrays
+    uint32_t offset = tr.traceACGT[0].size() - 1;
+    int bcpos = bc.bcPos.size() - 1;
+    TValue idx = bc.bcPos[bcpos];
+    ntr.traceACGT.push_back(TMountains());
+    ntr.traceACGT.push_back(TMountains());
+    ntr.traceACGT.push_back(TMountains());
+    ntr.traceACGT.push_back(TMountains());
+
+    for(int i = tr.traceACGT[0].size() - 1 ; i >= 0; --i) {
+        ntr.traceACGT[0].push_back(tr.traceACGT[3][i]);
+        ntr.traceACGT[1].push_back(tr.traceACGT[2][i]);
+        ntr.traceACGT[2].push_back(tr.traceACGT[1][i]);
+        ntr.traceACGT[3].push_back(tr.traceACGT[0][i]);
+        if (idx == i) {
+            nbc.bcPos.push_back(offset - idx);
+            // TODO rverscomplement bases below
+            nbc.primary.push_back(bc.primary[bcpos]);
+            nbc.secondary.push_back(bc.secondary[bcpos]);
+            if (bcpos >= 0) idx = bc.bcPos[--bcpos];
+        }
+    }
+  }
+
 
 
 }
