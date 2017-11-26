@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 
   boost::program_options::options_description otp("Output options");
   otp.add_options()
-    ("linelimit,l", boost::program_options::value<uint16_t>(&c.linelimit)->default_value(60), "alignment line length")
+    ("linelimit,n", boost::program_options::value<uint16_t>(&c.linelimit)->default_value(60), "alignment line length")
     ("align,a", boost::program_options::value<boost::filesystem::path>(&c.align)->default_value("out.align"), "output alignment")
     ("output,o", boost::program_options::value<boost::filesystem::path>(&c.outfile)->default_value("out.json"), "output file")
     ;
@@ -161,8 +161,9 @@ int main(int argc, char** argv) {
   //std::cerr << std::endl;
   //}
   
-  // Trim initial reference slice
-  trimReferenceSlice(align, rs);
+  // Trim initial reference slice and extend to full trace
+  trimReferenceSlice(c, align, rs);
+  trace = bc.primary;
 
   // Global alignment
   typedef boost::multi_array<char, 2> TAlign;

@@ -398,9 +398,9 @@ namespace sage
     ofile.close();
   }
 
-  template<typename TAlign>
+  template<typename TConfig, typename TAlign>
   inline void
-  trimReferenceSlice(TAlign const& align, ReferenceSlice& rs) {
+  trimReferenceSlice(TConfig const& c, TAlign const& align, ReferenceSlice& rs) {
     typedef typename TAlign::index TAIndex;
     uint32_t ri = 0;
     int32_t s = -1;
@@ -416,6 +416,11 @@ namespace sage
     for(TAIndex j = s; j < (TAIndex) e; ++j) {
       if (align[1][j] != '-') ++risize;
     }
+    if (ri >= c.trimLeft) {
+      ri -= c.trimLeft;
+      risize += c.trimLeft;
+    }
+    if (risize + c.trimRight < rs.refslice.size()) risize += c.trimRight;
     rs.refslice = rs.refslice.substr(ri, risize);
     rs.pos += ri;
   }
