@@ -214,6 +214,22 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
     retVal += "<line x1='" + lineXst + "' y1='" + lineYst;
     retVal += "' x2='" + lineXst + "' y2='" + lineYend + "' stroke-width='2' stroke='black' stroke-linecap='square'/>";
 
+    var prim = "";
+    var sec = "";
+    for (var i = 0; i < tr.basecallPos.length; i++) {
+        var base = tr.basecalls[tr.basecallPos[i]] + " ";
+        var pos = base.indexOf(":");
+    //    if ((i % 60) === 0 && i != 0) {
+    //        seq += "\n";
+    //    }
+        prim += base.charAt(pos + 1);
+        if (pos + 3 < base.length) {
+            sec += base.charAt(pos + 3);
+        } else {
+            sec += base.charAt(pos + 1);
+        }
+    }
+
     var ref = "";
     var abi = "";
     for (var i = 0; i < 50; i++) {
@@ -235,9 +251,13 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
             retVal += (xPos + 3) + "," + (lineYend + 11) + ")'>";
             retVal += tr.basecalls[tr.basecallPos[i]] + "</text>";
 
-            if (!(ref.charAt(i) === abi.charAt(i))) {
+            if (!(ref.charAt(i) === prim.charAt(i) && ref.charAt(i) === sec.charAt(i))) {
+                var refcol = "red";
+                if (ref.charAt(i) === prim.charAt(i) || ref.charAt(i) === sec.charAt(i)) {
+                    refcol = "orange";
+                }
                 retVal += "<rect x='" + (xPos - 5) + "' y='" + (lineYend + 63);
-                retVal += "' width='10' height='10' style='fill:red;stroke-width:3;stroke:red' />";
+                retVal += "' width='10' height='10' style='fill:" + refcol + ";stroke-width:3;stroke:" + refcol + "' />";
             }
 
             retVal += "<text x='" + (xPos + 3) + "' y='" + (lineYend + 71);
