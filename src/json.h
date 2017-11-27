@@ -185,6 +185,7 @@ namespace sage
 	  nbc.bcPos.push_back(tracePos + offset + (uint32_t) (step / 2.0));
 	  nbc.primary.push_back('-');
 	  nbc.secondary.push_back('-');
+	  nbc.consensus.push_back('-');
 	  for(uint32_t n = 0; n < step; ++n, ++offset) {
 	    ntr.traceACGT[0].push_back(EMPTY_TRACE_SIGNAL);
 	    ntr.traceACGT[1].push_back(EMPTY_TRACE_SIGNAL);
@@ -198,6 +199,7 @@ namespace sage
 	nbc.bcPos.push_back(idx + offset);
 	nbc.primary.push_back(bc.primary[bcpos]);
 	nbc.secondary.push_back(bc.secondary[bcpos]);
+	nbc.consensus.push_back(bc.consensus[bcpos]);
 	if (bcpos < bc.bcPos.size() - 1) idx = bc.bcPos[++bcpos];
       }
     }
@@ -207,6 +209,7 @@ namespace sage
 	nbc.bcPos.push_back(tracePos + offset + (uint32_t) (step / 2.0));
 	nbc.primary.push_back('-');
 	nbc.secondary.push_back('-');
+	nbc.consensus.push_back('-');
 	for(uint32_t n = 0; n < step; ++n, ++offset) {
 	  ntr.traceACGT[0].push_back(EMPTY_TRACE_SIGNAL);
 	  ntr.traceACGT[1].push_back(EMPTY_TRACE_SIGNAL);
