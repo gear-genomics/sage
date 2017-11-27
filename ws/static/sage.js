@@ -230,14 +230,7 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
         }
     }
 
-    var ref = "";
-    var abi = "";
-    for (var i = 0; i < 50; i++) {
-        ref += "-";
-        abi += "-";
-    }
-    ref += tr.refalign;
-    abi += tr.queryalign;
+    var ref = tr.refalign;
 
     // The X-Axis
     for (var i = 0; i < tr.basecallPos.length; i++) {

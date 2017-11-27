@@ -178,17 +178,18 @@ int main(int argc, char** argv) {
   //}
   plotAlignment(c, final, rs);
 
+
+  // Pad the trace according to alignment
   teal::BaseCalls nbc;
   teal::Trace ntr;
- 
-  gappyFuct(nbc, ntr, bc, tr, final);
-//  reverseAbi(nbc, ntr, bc, tr); 
+  alignmentTracePadding(final, tr, bc, ntr, nbc);
 
   // Output
   now = boost::posix_time::second_clock::local_time();
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Json output" << std::endl;
   traceAlignJsonOut(c.outfile.string(), nbc, ntr, rs, final);
-  
+
+  // Done
   now = boost::posix_time::second_clock::local_time();
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Done." << std::endl;
 
