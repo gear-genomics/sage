@@ -3,6 +3,8 @@
 .boost
 src/sdslLite/
 src/sage
+fm/
+data/
 
 # Prerequisites
 *.d
