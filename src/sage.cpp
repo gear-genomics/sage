@@ -150,7 +150,7 @@ int main(int argc, char** argv) {
   TProfile ptrace;
   createProfile(tr, bc, ptrace, c.trimLeft, c.trimRight);
   TProfile prefslice;
-  createProfile(rs.refslice, prefslice);
+  createProfile(c, rs, prefslice);
   
   // Debug Profile
   //for(uint32_t i = 0; i<ptrace.shape()[0]; ++i) {
@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
   TProfile ptr;
   createProfile(tr, bc, ptr);
   TProfile prs;
-  createProfile(rs.refslice, prs);
+  createProfile(c, rs, prs);
 
   // Global alignment
   typedef boost::multi_array<char, 2> TAlign;

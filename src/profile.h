@@ -76,6 +76,20 @@ namespace sage
     }
   }
 
+  template<typename TConfig, typename TProfile>
+  inline void
+  createProfile(TConfig const& c, ReferenceSlice const& rs, TProfile& p) {
+    if (rs.filetype != 2) return createProfile(rs.refslice, p);
+    else {
+      // Create profile from trace
+      teal::Trace wt;
+      if (!teal::readab(c.genome.string(), wt)) return;
+      teal::BaseCalls wtbc;
+      teal::basecall(wt, wtbc, c.pratio);
+      return createProfile(wt, wtbc, p);
+    }
+  }
+
   template<typename TChar, typename TProfile>
   inline void
   createProfile(boost::multi_array<TChar, 2> const& a, TProfile& p) {

@@ -103,7 +103,7 @@ namespace sage
     }
     rfile << "}," << std::endl;
     rfile << "\"refchr\": \"" << rs.chr << "\"," << std::endl;
-    rfile << "\"refpos\": " << rs.pos << "," << std::endl;
+    rfile << "\"refpos\": " << (rs.pos + 1) << "," << std::endl;
     rfile << "\"refalign\": \"";
     for(uint32_t j = 0; j<align.shape()[1]; ++j) rfile << align[1][j];
     rfile << "\"," << std::endl;
@@ -174,7 +174,8 @@ namespace sage
     uint32_t offset = 0;
     TValue tracePos = 0;
     uint32_t inspos = 0;
-    TValue insIdx = insPos[0];
+    TValue insIdx = -1;
+    if (!insPos.empty()) insIdx = insPos[0];
     for(; tracePos < (TValue) tr.traceACGT[0].size(); ++tracePos) {
       ntr.traceACGT[0].push_back(tr.traceACGT[0][tracePos]);        
       ntr.traceACGT[1].push_back(tr.traceACGT[1][tracePos]);
