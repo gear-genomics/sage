@@ -47,6 +47,7 @@ Contact: Tobias Rausch (rausch@embl.de)
 #include "gotoh.h"
 #include "fmindex.h"
 #include "json.h"
+#include "profile.h"
 
 using namespace sdsl;
 using namespace sage;
@@ -144,6 +145,19 @@ int main(int argc, char** argv) {
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Find reference match" << std::endl;
   if (!getReferenceSlice(c, fm_index, bc, rs)) return -1;
 
+  // Create trimmed trace and reference profile
+  typedef boost::multi_array<double, 2> TProfile;
+  TProfile ptrace;
+  createProfile(tr, bc, ptrace, c.trimLeft, c.trimRight);
+  TProfile prefslice;
+  createProfile(rs.refslice, prefslice);
+  
+  // Debug Profile
+  //for(uint32_t i = 0; i<ptrace.shape()[0]; ++i) {
+  //for(uint32_t j = 0; j<ptrace.shape()[1]; ++j) std::cerr << ptrace[i][j];
+  //std::cerr << std::endl;
+  //}
+  
   // Semi-global alignment
   now = boost::posix_time::second_clock::local_time();
   std::cout << '[' << boost::posix_time::to_simple_string(now) << "] " << "Alignment" << std::endl;
@@ -151,9 +165,7 @@ int main(int argc, char** argv) {
   TAlign align;
   AlignConfig<true, false> semiglobal;
   DnaScore<int> sc(5, -4, -10, -1);
-  std::string trace = bc.primary;
-  if (trace.size() > (c.trimLeft + c.trimRight)) trace = trace.substr(c.trimLeft, trace.size() - (c.trimLeft + c.trimRight));
-  gotoh(trace, rs.refslice, align, semiglobal, sc);
+  gotoh(ptrace, prefslice, align, semiglobal, sc);
 
   // Debug Alignment
   //for(uint32_t i = 0; i<align.shape()[0]; ++i) {
@@ -163,13 +175,16 @@ int main(int argc, char** argv) {
   
   // Trim initial reference slice and extend to full trace
   trimReferenceSlice(c, align, rs);
-  trace = bc.primary;
+  TProfile ptr;
+  createProfile(tr, bc, ptr);
+  TProfile prs;
+  createProfile(rs.refslice, prs);
 
   // Global alignment
   typedef boost::multi_array<char, 2> TAlign;
   TAlign final;
   AlignConfig<false, false> global;
-  gotoh(trace, rs.refslice, final, global, sc);
+  gotoh(ptr, prs, final, global, sc);
 
   // Debug Alignment
   //for(uint32_t i = 0; i<final.shape()[0]; ++i) {

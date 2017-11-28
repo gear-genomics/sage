@@ -30,27 +30,18 @@ Contact: Tobias Rausch (rausch@embl.de)
 namespace sage
 {
   
-  template<typename TAlign1, typename TAlign2, typename TAlign, typename TAlignConfig, typename TScoreObject>
+  template<typename TProfile, typename TAlign, typename TAlignConfig, typename TScoreObject>
   inline int
-  gotoh(TAlign1 const& a1, TAlign2 const& a2, TAlign& align, TAlignConfig const& ac, TScoreObject const& sc) {
+  gotoh(TProfile const& p1, TProfile const& p2, TAlign& align, TAlignConfig const& ac, TScoreObject const& sc) {
     typedef typename TScoreObject::TValue TScoreValue;
 
     // DP Matrix
     typedef boost::multi_array<TScoreValue, 2> TMatrix;
-    std::size_t m = _size(a1, 1);
-    std::size_t n = _size(a2, 1);
+    std::size_t m = p1.shape()[1];
+    std::size_t n = p2.shape()[1];
     TMatrix s(boost::extents[m+1][n+1]);
     TMatrix h(boost::extents[m+1][n+1]);
     TMatrix v(boost::extents[m+1][n+1]);
-
-    // Create profile
-    typedef boost::multi_array<double, 2> TProfile;
-    TProfile p1;
-    TProfile p2;
-    if ((_size(a1, 0) != 1) || (_size(a2, 0) != 1)) {
-      _createProfile(a1, p1);
-      _createProfile(a2, p2);
-    }
 
     // Initialization
     for(std::size_t col = 1; col <= n; ++col) {
@@ -72,7 +63,7 @@ namespace sage
       for(std::size_t col = 1; col <= n; ++col) {
 	h[row][col] = std::max(s[row][col-1] + _horizontalGap(ac, row, m, sc.go + sc.ge), h[row][col-1] + _horizontalGap(ac, row, m, sc.ge));
 	v[row][col] = std::max(s[row-1][col] + _verticalGap(ac, col, n, sc.go + sc.ge), v[row-1][col] + _verticalGap(ac, col, n, sc.ge));
-	s[row][col] = std::max(std::max(s[row-1][col-1] + _score(a1, a2, p1, p2, row-1, col-1, sc), h[row][col]), v[row][col]);
+	s[row][col] = std::max(std::max(s[row-1][col-1] + _score(p1, p2, row-1, col-1, sc), h[row][col]), v[row][col]);
       }
     }
 
@@ -90,42 +81,23 @@ namespace sage
 	  --row;
 	  --col;
 	  trace.push_back('s');
-	  //std::cerr << a1[0][row] << a2[0][col] << std::endl;
 	}
       } else if (lastMatrix == 'h') {
 	if (h[row][col] != h[row][col-1] + _horizontalGap(ac, row, m, sc.ge)) lastMatrix = 's';
 	--col;
 	trace.push_back('h');
-	//std::cerr << '-' << a2[0][col] << std::endl;
       } else if (lastMatrix == 'v') {
 	if (v[row][col] != v[row-1][col] + _verticalGap(ac, col, n, sc.ge)) lastMatrix = 's';
 	--row;
 	trace.push_back('v');
-	//std::cerr << a1[0][row] << '-' << std::endl;
       }
     }
 
     // Create alignment
-    _createAlignment(trace, a1, a2, align);
+    _createAlignment(trace, p1, p2, align);
 
     // Score
     return s[m][n];
-  }
-
-  template<typename TAlign1, typename TAlign2, typename TAlign, typename TAlignConfig>
-  inline int
-  gotoh(TAlign1 const& a1, TAlign2 const& a2, TAlign& align, TAlignConfig const& ac) 
-  {
-    DnaScore<int> dnasc;    
-    return gotoh(a1, a2, align, ac, dnasc);
-  }
-
-  template<typename TAlign1, typename TAlign2, typename TAlign>
-  inline int
-  gotoh(TAlign1 const& a1, TAlign2 const& a2, TAlign& align)
-  {
-    AlignConfig<false, false> ac;
-    return gotoh(a1, a2, align, ac);
   }
 
 }
