@@ -143,7 +143,7 @@ function tealNavFwWin() {
 
 function tealSVGRepaint(){
     var retVal = tealCreateSVG(tealAllResults,tealWinXst,tealWinXend,tealWinYend,0,1000,0,200);
-    tealDigShowSVG(retVal, 1200, 500);
+    tealDigShowSVG(retVal, 1250, 500);
 }
 
 function tealCheckData() {
@@ -161,7 +161,7 @@ function displayResults (results) {
     tealAllResults = results;
     tealDisplayTextSeq (tealAllResults);
     var retVal = tealCreateSVG(tealAllResults,tealWinXst,tealWinXend,tealWinYend,0,1000,0,200);
-    tealDigShowSVG(retVal, 1200, 500);
+    tealDigShowSVG(retVal, 1250, 500);
 }
 
 function tealDisplayTextSeq (tr) {
@@ -195,7 +195,7 @@ function tealDigShowSVG(svg, x, y) {
 }
 
 function tealCreateSVG(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend) {
-    var retVal = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='-50 -50 1100 350'>";
+    var retVal = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='-60 0 1200 350'>";
 
     retVal += tealCreateAllCalls(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
     retVal += tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
@@ -230,12 +230,16 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
         }
     }
 
-    var ref = tr.refalign;
-
     // The X-Axis
+    var firstBase = -1;
+    var lastBase = -1;
     for (var i = 0; i < tr.basecallPos.length; i++) {
         if ((parseFloat(tr.basecallPos[i]) > startX) &&
             (parseFloat(tr.basecallPos[i]) < endX)) {
+            if (firstBase === -1) {
+                firstBase = tr.basecalls[tr.basecallPos[i]];
+            }
+            lastBase = tr.basecalls[tr.basecallPos[i]];
             var xPos = wdXst + (parseFloat(tr.basecallPos[i]) - startX) / (endX - startX)  * (wdXend - wdXst);
             retVal += "<line x1='" + xPos + "' y1='" + lineYend;
             retVal += "' x2='" + xPos + "' y2='" + (lineYend + 7)+ "' stroke-width='2' stroke='black' />";
@@ -244,21 +248,57 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
             retVal += (xPos + 3) + "," + (lineYend + 11) + ")'>";
             retVal += tr.basecalls[tr.basecallPos[i]] + "</text>";
 
-            if (!(ref.charAt(i) === prim.charAt(i) && ref.charAt(i) === sec.charAt(i))) {
-                var refcol = "red";
-                if (ref.charAt(i) === prim.charAt(i) || ref.charAt(i) === sec.charAt(i)) {
-                    refcol = "orange";
+            if(tr.hasOwnProperty('refalign')){
+                if (!(tr.refalign.charAt(i) === prim.charAt(i) && tr.refalign.charAt(i) === sec.charAt(i))) {
+                    var refcol = "red";
+                    if (tr.refalign.charAt(i) === prim.charAt(i) || tr.refalign.charAt(i) === sec.charAt(i)) {
+                        refcol = "orange";
+                    }
+                    retVal += "<rect x='" + (xPos - 5) + "' y='" + (lineYend + 63);
+                    retVal += "' width='10' height='10' style='fill:" + refcol + ";stroke-width:3;stroke:" + refcol + "' />";
                 }
-                retVal += "<rect x='" + (xPos - 5) + "' y='" + (lineYend + 63);
-                retVal += "' width='10' height='10' style='fill:" + refcol + ";stroke-width:3;stroke:" + refcol + "' />";
+                retVal += "<text x='" + (xPos + 3) + "' y='" + (lineYend + 71);
+                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
+                retVal += tr.refalign.charAt(i);
+                retVal +=  "</text>";
             }
-
-            retVal += "<text x='" + (xPos + 3) + "' y='" + (lineYend + 71);
-            retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
-            retVal += ref.charAt(i) + "</text>";
-
-        } 
+        }
     }
+
+    var refOrient = "";
+    if(tr.hasOwnProperty('forward')){
+        if(tr.forward === 0) {
+            if(tr.hasOwnProperty('refpos')){
+                firstBase = parseInt(tr.refpos) + parseInt(firstBase);
+                lastBase = parseInt(tr.refpos) + parseInt(lastBase);
+                retVal += "<text x='-5' y='" + (lineYend + 71);
+                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
+                retVal += firstBase + "</text>";
+                retVal += "<text x='1005' y='" + (lineYend + 71);
+                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='start'>";
+                retVal += lastBase + "</text>";
+            }
+            refOrient = " - forward";
+        } else {
+            if(tr.hasOwnProperty('refpos')){
+                firstBase = parseInt(tr.refpos) - parseInt(firstBase);
+                lastBase = parseInt(tr.refpos) - parseInt(lastBase);
+                retVal += "<text x='-5' y='" + (lineYend + 71);
+                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
+                retVal += firstBase + "</text>";
+                retVal += "<text x='1005' y='" + (lineYend + 71);
+                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='start'>";
+                retVal += lastBase + "</text>";
+            }
+            refOrient = " - reverse";
+        }
+    }
+    if(tr.hasOwnProperty('refchr')){
+        retVal += "<text x='500' y='" + (lineYend + 100);
+        retVal += "' font-family='Arial' font-size='15' fill='black' text-anchor='middle'>";
+        retVal += tr.refchr + refOrient + "</text>";
+    }
+   
     // The Y-Axis
     var yPow = Math.pow(10, Math.floor(Math.log10(endY/10)));
     var yStep = Math.floor(endY/10/yPow) * yPow;
@@ -271,8 +311,8 @@ function tealCreateCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
         retVal += (i * yStep) + "</text>";
     }
    
-    var sqrY = wdYend + 90;
-    var txtY = wdYend + 101;
+    var sqrY = -20;
+    var txtY = -9;
     retVal += "<rect x='400' y='" + sqrY + "' width='10' height='10' style='fill:green;stroke-width:3;stroke:green' />";
     retVal += "<text x='417' y='" + txtY + "' font-family='Arial' font-size='18' fill='black'>A</text>";
     retVal += "<rect x='450' y='" + sqrY + "' width='10' height='10' style='fill:blue;stroke-width:3;stroke:blue' />";
@@ -322,6 +362,5 @@ function tealCreateOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend
     }
     return retVal;
 }
-
 
 
