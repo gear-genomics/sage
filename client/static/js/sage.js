@@ -1,5 +1,14 @@
 /* global XMLHttpRequest */
 
+var submitButton = document.getElementById('btn-submit')
+submitButton.addEventListener('click', submit)
+var sampleButton = document.getElementById('btn-example')
+sampleButton.addEventListener('click', sampleData)
+var helpButton = document.getElementById('btn-help')
+helpButton.addEventListener('click', goToHelp)
+const resultLink = document.getElementById('link-results')
+const helpLink = document.getElementById('link-help')
+
 var navBwWinButton = document.getElementById('teal-nav-bw-win')
 navBwWinButton.addEventListener('click', tealNavBwWin)
 var navBwBitButton = document.getElementById('teal-nav-bw-bit')
@@ -27,7 +36,18 @@ navHiTButton.addEventListener('click', tealNavHiT)
 var navHiNButton = document.getElementById('teal-nav-hi-n')
 navHiNButton.addEventListener('click', tealNavHiN)
 
+$('#mainTab a').on('click', function (e) {
+  e.preventDefault()
+  $(this).tab('show')
+})
 
+$('#refTab a').on('click', function (e) {
+  e.preventDefault()
+  $(this).tab('show')
+})
+
+var spinnerHtml = '<i class="fa fa-spinner fa-pulse fa-3x fa-fw"></i>'
+var resHelp = -1;
 var sectionResults = document.getElementById('results')
 
 var tealWinXst = 0;
@@ -361,6 +381,77 @@ function tealCreateOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend
         retVal += "'/>";
     }
     return retVal;
+}
+
+function submit () {
+    var file = document.getElementById('experiment').files[0];
+    var fasta = document.getElementById('fasta').files[0];
+    var trace = document.getElementById('trace').files[0];
+    var data = new FormData();
+    data.append('sample', 'no');
+    data.append('experiment', file);
+    data.append('refType', document.getElementById('refType').value);
+    data.append('genome', document.getElementById('genome').value);
+    data.append('fasta', fasta);
+    data.append('trace', trace);
+    doSubmit (data);
+}
+
+function sampleData () {
+    var data = new FormData();
+    data.append('sample', 'sample');
+    doSubmit (data);
+}
+
+function goToHelp() {
+    helpLink.click();
+}
+
+
+function doSubmit (data) {
+    document.getElementById('teal-fastaText').value = "";
+    document.getElementById('teal-refText').value = "";
+    var loca = 'http://0.0.0.0:3300';
+    if (location.origin.startsWith("http")) {
+        loca = location.origin;
+    }
+    var req = new XMLHttpRequest()
+    req.addEventListener('load', displayResults)
+    req.open('POST', loca + '/upload', true)
+    req.send(data)
+    sectionResults.innerHTML = spinnerHtml
+}
+
+function displayData(data) {
+    var res = JSON.parse(data)
+    tealAllResults = res.data
+    tealWinXst = 0;
+    tealWinXend = 600;
+    tealWinYend = 2300;
+    tealDisplayTextSeq (tealAllResults);
+    var retVal = tealCreateSVG(tealAllResults,tealWinXst,tealWinXend,tealWinYend,0,1000,0,200);
+    tealDigShowSVG(retVal, 1250, 500);
+}
+
+function displayError(data) {
+    var res = JSON.parse(data)
+    for (var i = 0; i < res["errors"].length; i++) {
+        sectionResults.innerHTML = '<br /><div class="error">' + res["errors"][i]['title'] + '</div><br />'
+    }
+}
+
+function displayResults() {
+    if (this.status === 200) {
+        displayData(this.response)
+        document.getElementById("resButtons").style.display = '';
+        document.getElementById("textResults").style.display = '';
+    } else {
+        displayError(this.response)
+        document.getElementById("resButtons").style.display = 'none';
+        document.getElementById("textResults").style.display = 'none';
+    }
+    resHelp = 0;
+    resultLink.click();
 }
 
 

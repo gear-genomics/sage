@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <title>sage: sanger trace alignment | GEAR</title>
+  <meta name="description" content="Visualize trace files.">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.6/css/all.css">
+  <link rel="stylesheet" href="static/css/gear.css">
+  <link rel="stylesheet" href="static/css/sage.css">
+</head>
+
+<body>
+
+  <header class="px-0 py-4">
+    <div class="container">
+      <h1 class="display-4 app-name">sage</h1>
+        <p class="lead">Sanger trace alignment.</p>
+        <!--<a class="plain" href="" target="_blank">
+          <i class="fas fa-book"></i> Docs
+        </a>
+        ·-->
+        <a class="plain" href="https://www-db.embl.de/EMBLPersonGroup-PersonPicture/MailForm/?recipient=ggenomics" target="_blank">
+          <i class="fas fa-question"></i> Get help
+        </a>
+        ·
+        <a class="plain" target="_blank" href="https://github.com/gear-genomics/sage">
+          <i class="fab fa-github-alt"></i> Source
+        </a>
+    </div>
+  </header>
+
+  <main class="container">
+    <ul class="nav nav-fill mb-2" id="mainTab">
+      <li class="nav-item">
+        <a class="nav-link active" href="#input-tab">Input</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#result-tab" id="link-results">Results</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#help-tab" id="link-help">Help</a>
+      </li>
+    </ul>
+    <div class="tab-content" id="main-tabs">
+      <div class="tab-pane show active" id="input-tab">
+        <div class="alert alert-light mb-2" role="alert">
+          <i class="fas fa-info-circle"></i>
+          Load trace file (.abi, .ab1, .ab! or .ab)<br>
+          <input type="file" class="btn btn-default btn-file" name="experiment" id="experiment" />
+          <br>
+          (click the <code>Load Example</code> button to view an example)
+        </div>
+        <p></p>
+        <p></p>
+        <ul class="nav nav-tabs" id="refTab">
+          <input class="span2" id="refType" name="refType" type="hidden" />
+          <li class="nav-item">
+            <a class="nav-link active" href="#genome-tab" onclick="$('#refType').val('genome')">Genome Indices</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#fasta-tab" id="link-fasta" onclick="$('#refType').val('fasta')">Single Fasta</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#trace-tab" id="link-trace" onclick="$('#refType').val('trace')">Wildtype Chromatogram</a>
+          </li>
+        </ul>
+        <div class="tab-content" id="ref-tabs">
+          <div class="tab-pane show active" id="genome-tab">
+            <div class="alert alert-light mb-2" role="alert">
+              <p></p>
+              <input class="span2" id="genome" name="genome" type="hidden" />
+              <div class="btn-group">
+                <button type="button" class="btn btn-secondary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Genome
+                </button>
+                <div class="dropdown-menu">
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Arabidopsis_thaliana.TAIR10.dna.toplevel.fa.gz')">A. thaliana TAIR10</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Caenorhabditis_elegans.WBcel235.dna.toplevel.fa.gz')">C. elegans WBcel235</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Danio_rerio.GRCz10.dna.toplevel.fa.gz')">Danio Rerio GRCz10</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Drosophila_melanogaster.BDGP6.dna.toplevel.fa.gz')">D. melanogaster BDGP6</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz')">Homo Sapiens GRCh37</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz')">Homo Sapiens GRCh38</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Oryzias_latipes.MEDAKA1.dna.toplevel.fa.gz')">Medaka1</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Mus_musculus.GRCm38.dna.primary_assembly.fa.gz')">Mus musculus GRCm38</a>
+                  <a class="dropdown-item" href="#" onclick="$('#genome').val('Saccharomyces_cerevisiae.R64-1-1.dna.toplevel.fa.gz')">S. cerevisiae R64</a>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-pane" id="fasta-tab">
+            <p></p>
+            <div class="alert alert-light mb-2" role="alert">
+              <i class="fas fa-info-circle"></i>
+              Load fasta file (.fa)<br>
+              <input type="file" class="btn btn-default btn-file" name="fasta" id="fasta" />
+            </div>
+          </div>
+          <div class="tab-pane" id="trace-tab">
+            <p></p>
+            <div class="alert alert-light mb-2" role="alert">
+              <i class="fas fa-info-circle"></i>
+              Wildtype Chromatogram (.ab1, .abi or .ab)<br>
+              <input type="file" class="btn btn-default btn-file" name="trace" id="trace" />
+            </div>
+          </div>
+        </div>
+ 
+        <button type="submit" class="btn btn-outline-primary" id="btn-submit">
+          <i class="fas fa-rocket" style="margin-right: 5px;"></i>
+          Launch Analysis
+        </button>
+        <button type="submit" class="btn btn-outline-primary" id="btn-example">
+          <i class="fas fa-eye" style="margin-right: 5px;"></i>
+          Load Example
+        </button>
+        <button type="submit" class="btn btn-outline-primary" id="btn-help">
+          <i class="far fa-life-ring" style="margin-right: 5px;"></i>
+          Help
+        </button>
+       </div>
+
+      <div class="tab-pane" id="result-tab">
+        <div id="resButtons" style="display:none;">
+          <button id="teal-nav-bw-win" class="btn btn-outline-secondary">prev</button>
+          <button id="teal-nav-bw-bit" class="btn btn-outline-secondary">&lt;</button>
+          <button id="teal-nav-zy-in" class="btn btn-outline-secondary">Bigger Peaks</button>
+          <button id="teal-nav-zy-out" class="btn btn-outline-secondary">Smaller Peaks</button>
+          <button id="teal-nav-zx-in" class="btn btn-outline-secondary">Zoom in</button>
+          <button id="teal-nav-zx-out" class="btn btn-outline-secondary">Zoom Out</button>
+          <button id="teal-nav-fw-bit" class="btn btn-outline-secondary">&gt;</button>
+          <button id="teal-nav-fw-win" class="btn btn-outline-secondary">next</button>
+          <a>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</a>
+          <button id="teal-nav-hi-a" class="btn btn-outline-secondary"><strong>A</strong></button>
+          <button id="teal-nav-hi-c" class="btn btn-outline-secondary"><strong>C</strong></button>
+          <button id="teal-nav-hi-g" class="btn btn-outline-secondary"><strong>G</strong></button>
+          <button id="teal-nav-hi-t" class="btn btn-outline-secondary"><strong>T</strong></button>
+          <button id="teal-nav-hi-n" class="btn btn-outline-secondary">ACGT</button>
+        </div>
+        <div id="results"></div>
+        <div id="textResults" style="display:none;">
+          <hr>
+          <p>Chromatogram Sequence:</p>
+          <textarea class="form-control" id="teal-fastaText" name="teal-fastaText" rows="7" cols="110"></textarea>
+          <hr>
+          <p>Reference Sequence:</p>
+          <textarea class="form-control" id="teal-refText" name="teal-refText" rows="7" cols="110"></textarea>
+          <br />
+        </div>
+      </div>
+
+      <div class="tab-pane" id="help-tab">
+           Sage is a tool to view sanger trace files aligned to a reference. The reference can
+           be a genome, a provided fasta file (*.fa) or a other trace file (*.abi, *.ab, *.ab1 
+           and *.ab). Just select a file and a reference and hit launch analysis.<br />
+           Alternatively load the sample trace file
+           <a href="static/bin/sample.abi">(click to download file)</a>
+           and reference fasta
+           <a href="static/bin/sample.fa">(click to download file)</a>
+           by hitting the load example button and try the functionality.</p>
+           <img src="static/img/teal_explain_input.jpg" alt="Screenshot input with comments">
+           <br><br>
+           <img src="static/img/teal_explain_result.jpg" alt="Screenshot results with comments">
+        </p>
+      </div>
+
+    </div>
+  </main>
+
+
+
+
+<!--
+
+
+
+	    <div class="page-header">
+		<p>Analysis takes a couple of seconds to run, please be patient.</p>
+	    </div>
+
+	    <form action = "{{ baseurl }}/upload" method = "POST" enctype = "multipart/form-data">
+		<div class="form-group">
+		    <label for="experiment">Experiment Chromatogram (.ab1, .abi or .ab)</label>
+		    <br>
+		    <label class="btn btn-default btn-file">
+			<input type="file" name="experiment" id="experiment" hidden />
+		    </label>
+			</div>
+			<p></p>
+-->
+
+
+
+
+  <footer>
+    <div class="container">
+      <div class="float-left">
+        <a class="plain" target="_blank" href="https://gear.embl.de">
+          GEAR ~
+          <i class="fas fa-home"></i>
+        </a>
+        ·
+        <a class="plain" target="_blank" href="https://github.com/gear-genomics">
+          <i class="fab fa-github-alt"></i>
+        </a>
+        ·
+        <a class="plain" target="_blank" href="https://gear.embl.de/terms">
+          Terms of Use
+        </a>
+        ·
+        <a class="plain" target="_blank" href="https://gear.embl.de/contact">
+          Contact Us
+        </a>
+      </div>
+      <div class="float-right">
+        Hosted with
+        <i class="fas fa-heart embl-red"></i> by
+        <a class="plain" target="_blank" href="https://www.embl.de/">
+          <img class="footer-logo" alt="EMBL logo" src="static/img/embl.svg">
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+  <script src="static/js/sage.js"></script>
+
+</body>
+
+</html>
+

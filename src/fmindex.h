@@ -121,9 +121,17 @@ namespace sage
 		  std::cerr << "Only single-chromosome FASTA files are supported. If you have a multi-FASTA file please use bgzip and index the FASTA file with samtools faidx!" << std::endl;
 		  return false;
 		}
-		rs.chr = line.substr(1);
+                if (line.at(line.length() - 1) == '\r' ){
+                  rs.chr = line.substr(1, line.length() - 2);
+                } else {
+		  rs.chr = line.substr(1);
+                }
 	      } else {
-		tmpfasta += boost::to_upper_copy(line);
+                if (line.at(line.length() - 1) == '\r' ){
+                  tmpfasta += boost::to_upper_copy(line.substr(0, line.length() - 1));
+                } else {
+                  tmpfasta += boost::to_upper_copy(line);
+                }
 	      }
 	    }
 	  }
