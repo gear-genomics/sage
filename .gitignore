@@ -4,6 +4,7 @@ src/sdslLite/
 src/sage
 fm/
 data/
+bin/
 
 # Prerequisites
 *.d
