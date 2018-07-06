@@ -5,18 +5,22 @@ STATIC ?= 0
 PWD = $(shell pwd)
 SDSL_ROOT ?= ${PWD}/src/sdslLite
 EBROOTHTSLIB ?= ${PWD}/src/htslib
-BOOST_ROOT ?= ${PWD}/src/modular-boost
 TEAL_ROOT ?= ${PWD}/src/teal/src
+
+# Install dir
+prefix = ${PWD}
+exec_prefix = $(prefix)
+bindir = $(exec_prefix)/bin
 
 # Flags
 CXX=g++
-CXXFLAGS += -std=c++11 -O3 -DNDEBUG -isystem ${EBROOTHTSLIB} -isystem ${BOOST_ROOT} -isystem ${TEAL_ROOT} -isystem ${SDSL_ROOT}/include -pedantic -W -Wall
-LDFLAGS += -L${SDSL_ROOT}/lib -L${BOOST_ROOT}/stage/lib -lboost_iostreams -lboost_filesystem -lboost_system -lboost_program_options -lboost_date_time -lsdsl -ldivsufsort -ldivsufsort64 -L${EBROOTHTSLIB}
+CXXFLAGS += -std=c++11 -O3 -DNDEBUG -isystem ${EBROOTHTSLIB} -isystem ${TEAL_ROOT} -isystem ${SDSL_ROOT}/include -pedantic -W -Wall -fvisibility=hidden
+LDFLAGS += -L${SDSL_ROOT}/lib -lboost_iostreams -lboost_filesystem -lboost_system -lboost_program_options -lboost_date_time -lsdsl -ldivsufsort -ldivsufsort64 -L${EBROOTHTSLIB}
 
 ifeq (${STATIC}, 1)
 	LDFLAGS += -static -static-libgcc -pthread -lhts -lz
 else
-	LDFLAGS += -lhts -lz -Wl,-rpath,${EBROOTHTSLIB},-rpath,${BOOST_ROOT}/stage/lib
+	LDFLAGS += -lhts -lz -Wl,-rpath,${EBROOTHTSLIB}
 endif
 
 ifeq (${DEBUG}, 1)
@@ -32,11 +36,11 @@ endif
 SDSLSOURCES = $(wildcard src/sdsl/lib/*.cpp)
 IDXSOURCES = $(wildcard src/*.cpp) $(wildcard src/*.h)
 HTSLIBSOURCES = $(wildcard src/htslib/*.c) $(wildcard src/htslib/*.h)
-BOOSTSOURCES = $(wildcard src/modular-boost/libs/iostreams/include/boost/iostreams/*.hpp)
 PBASE=$(shell pwd)
 
 # Targets
-TARGETS = .sdsl .htslib .boost src/sage
+BUILT_PROGRAMS = src/sage
+TARGETS = .sdsl .htslib ${BUILT_PROGRAMS}
 
 all:   	$(TARGETS)
 
@@ -46,14 +50,14 @@ all:   	$(TARGETS)
 .htslib: $(HTSLIBSOURCES)
 	cd src/htslib && make && make lib-static && cd ../../ && touch .htslib
 
-.boost: $(BOOSTSOURCES)
-	cd src/modular-boost && ./bootstrap.sh --prefix=${PWD}/src/modular-boost --without-icu --with-libraries=iostreams,filesystem,system,program_options,date_time && ./b2 && ./b2 headers && cd ../../ && touch .boost
-
-src/sage: .sdsl .htslib .boost ${IDXSOURCES}
+src/sage: .sdsl .htslib ${IDXSOURCES}
 	$(CXX) $(CXXFLAGS) $@.cpp -o $@ $(LDFLAGS)
+
+install: ${BUILT_PROGRAMS}
+	mkdir -p ${bindir}
+	install -p ${BUILT_PROGRAMS} ${bindir}
 
 clean:
 	cd src/htslib && make clean
-	cd src/modular-boost && ./b2 --clean-all
 	cd src/sdsl/ && ./uninstall.sh && cd ../../ && rm -rf src/sdslLite/
 	rm -f $(TARGETS) $(TARGETS:=.o)
