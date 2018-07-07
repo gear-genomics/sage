@@ -24,6 +24,7 @@ const targetTabs = document.getElementById('target-tabs')
 const resultContainer = document.getElementById('result-container')
 const resultInfo = document.getElementById('result-info')
 const resultError = document.getElementById('result-error')
+var sectionResults = document.getElementById('results')
 
 // TODO client-side validation
 function run() {
@@ -223,24 +224,6 @@ function tealNavFwWin() {
 }
 
 function tealSVGRepaint(){
-    var retVal = tealCreateSVG(tealAllResults,tealWinXst,tealWinXend,tealWinYend,0,1000,0,200);
-    tealDigShowSVG(retVal, 1250, 500);
-}
-
-function tealCheckData() {
-    if (tealAllResultsJSON === "") {
-        tealAllResults = "";
-    } else {
-        tealAllResults = tealAllResultsJSON;
-        document.getElementById("resButtons").style.display = '';
-        document.getElementById("textResults").style.display = '';
-        displayResults(tealAllResults)
-    }
-}
-
-function displayResults (results) {
-    tealAllResults = results;
-    tealDisplayTextSeq (tealAllResults);
     var retVal = tealCreateSVG(tealAllResults,tealWinXst,tealWinXend,tealWinYend,0,1000,0,200);
     tealDigShowSVG(retVal, 1250, 500);
 }
@@ -446,15 +429,14 @@ function tealCreateOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend
 
 function displayData(res) {
     console.log("Data")
-    console.log(res.data)
+    //console.log(res.data)
     tealAllResults = res.data
     tealWinXst = 0;
     tealWinXend = 600;
     tealWinYend = 2300;
     tealDisplayTextSeq(tealAllResults);
-    //Not working yet!!!
-    //var retVal = tealCreateSVG(tealAllResults,tealWinXst,tealWinXend,tealWinYend,0,1000,0,200);
-    //tealDigShowSVG(retVal, 1250, 500);
+    var retVal = tealCreateSVG(tealAllResults,tealWinXst,tealWinXend,tealWinYend,0,1000,0,200);
+    tealDigShowSVG(retVal, 1250, 500);
 }
 
 
