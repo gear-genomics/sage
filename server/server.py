@@ -33,40 +33,44 @@ def upload_file():
             os.makedirs(sf)
 
         # Experiment
-        if 'queryFile' not in request.files:
-            return jsonify(errors = [{"title": "Chromatogram file is missing!"}]), 400
-        fexp = request.files['queryFile']
-        if fexp.filename == '':
-            return jsonify(errors = [{"title": "Chromatogram file name is missing!"}]), 400
-        if not allowed_file(fexp.filename):
-            return jsonify(errors = [{"title": "Chromatogram file has incorrect file type!"}]), 400
-        fexpname = os.path.join(sf, "sage_" + uuidstr + "_" + secure_filename(fexp.filename))
-        fexp.save(fexpname)
-
-        # Genome
-        if 'genome' in request.form.keys():
-            genome = request.form['genome']
-            if genome == '':
-                return jsonify(errors = [{"title": "Genome index is missing!"}]), 400
-            genome = os.path.join(app.config['SAGE'], "fm", genome)
-        elif 'fastaFile' in request.files.keys():
-            fafile = request.files['fastaFile']
-            if fafile.filename == '':
-                return jsonify(errors = [{"title": "Fasta file is missing!"}]), 400
-            if not allowed_file(fafile.filename):
-                return jsonify(errors = [{"title": "Fasta file has incorrect file type!"}]), 400
-            genome = os.path.join(sf, "sage_" + uuidstr + "_" + secure_filename(fafile.filename))
-            fafile.save(genome)
-        elif 'chromatogramFile' in request.files.keys():
-            wtabfile = request.files['chromatogramFile']
-            if wtabfile.filename == '':
-                return jsonify(errors = [{"title": "Wildtype Chromatogram file is missing!"}]), 400
-            if not allowed_file(wtabfile.filename):
-                return jsonify(errors = [{"title": "Wildtype Chromatogram file has incorrect file type!"}]), 400
-            genome = os.path.join(sf, "sage_" + uuidstr + "_" + secure_filename(wtabfile.filename))
-            wtabfile.save(genome)
+        if 'showExample' in request.form.keys():
+            fexpname = os.path.join(SAGEWS, "sample.abi")
+            genome = os.path.join(SAGEWS, "sample.fa")
         else:
-            return jsonify(errors = [{"title": "No input reference file provided!"}]), 400
+            if 'queryFile' not in request.files:
+                return jsonify(errors = [{"title": "Chromatogram file is missing!"}]), 400
+            fexp = request.files['queryFile']
+            if fexp.filename == '':
+                return jsonify(errors = [{"title": "Chromatogram file name is missing!"}]), 400
+            if not allowed_file(fexp.filename):
+                return jsonify(errors = [{"title": "Chromatogram file has incorrect file type!"}]), 400
+            fexpname = os.path.join(sf, "sage_" + uuidstr + "_" + secure_filename(fexp.filename))
+            fexp.save(fexpname)
+
+            # Genome
+            if 'genome' in request.form.keys():
+                genome = request.form['genome']
+                if genome == '':
+                    return jsonify(errors = [{"title": "Genome index is missing!"}]), 400
+                genome = os.path.join(app.config['SAGE'], "fm", genome)
+            elif 'fastaFile' in request.files.keys():
+                fafile = request.files['fastaFile']
+                if fafile.filename == '':
+                    return jsonify(errors = [{"title": "Fasta file is missing!"}]), 400
+                if not allowed_file(fafile.filename):
+                    return jsonify(errors = [{"title": "Fasta file has incorrect file type!"}]), 400
+                genome = os.path.join(sf, "sage_" + uuidstr + "_" + secure_filename(fafile.filename))
+                fafile.save(genome)
+            elif 'chromatogramFile' in request.files.keys():
+                wtabfile = request.files['chromatogramFile']
+                if wtabfile.filename == '':
+                    return jsonify(errors = [{"title": "Wildtype Chromatogram file is missing!"}]), 400
+                if not allowed_file(wtabfile.filename):
+                    return jsonify(errors = [{"title": "Wildtype Chromatogram file has incorrect file type!"}]), 400
+                genome = os.path.join(sf, "sage_" + uuidstr + "_" + secure_filename(wtabfile.filename))
+                wtabfile.save(genome)
+            else:
+                return jsonify(errors = [{"title": "No input reference file provided!"}]), 400
 
         # Run sage
         outfile = os.path.join(sf, "sage_" + uuidstr + ".json")

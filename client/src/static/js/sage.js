@@ -73,8 +73,30 @@ async function handleSuccess(res) {
 }
 
 function showExample() {
-  resultLink.click()
-  //handleSuccess(linkExample.href)
+    resultLink.click()
+    const formData = new FormData()
+    formData.append('showExample', 'showExample')
+    hideElement(resultContainer)
+    hideElement(resultError)
+    showElement(resultInfo)
+    axios
+	.post(`${API_URL}/upload`, formData)
+	.then(res => {
+	    if (res.status === 200) {
+		handleSuccess(res.data)
+	    }
+	})
+	.catch(err => {
+	    let errorMessage = err
+	    if (err.response) {
+		errorMessage = err.response.data.errors
+		    .map(error => error.title)
+		    .join('; ')
+	    }
+	    hideElement(resultInfo)
+	    showElement(resultError)
+	    resultError.querySelector('#error-message').textContent = errorMessage
+	})
 }
 
 function showElement(element) {
@@ -428,8 +450,6 @@ function tealCreateOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend
 }
 
 function displayData(res) {
-    console.log("Data")
-    //console.log(res.data)
     tealAllResults = res.data
     tealWinXst = 0;
     tealWinXend = 600;
