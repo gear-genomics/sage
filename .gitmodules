@@ -2,7 +2,3 @@
 	path = src/htslib
 	url = https://github.com/samtools/htslib.git
 	ignore = dirty
-[submodule "src/teal"]
-	path = src/teal
-	url = https://github.com/gear-genomics/teal.git
-	ignore = dirty
