@@ -74,13 +74,11 @@ def upload_file():
 
         # Run sage
         outfile = os.path.join(sf, "sage_" + uuidstr + ".json")
-        alnfile = os.path.join(sf, "sage_" + uuidstr + ".align")
         logfile = os.path.join(sf, "sage_" + uuidstr + ".log")
         errfile = os.path.join(sf, "sage_" + uuidstr + ".err")
         with open(logfile, "w") as log:
             with open(errfile, "w") as err:
-                blexe = os.path.join(app.config['SAGE'], "./src/sage")
-                return_code = call([blexe,'-g', genome,'-o',outfile,'-a',alnfile,fexpname], stdout=log, stderr=err)
+                return_code = call(['tracy', 'align', '-g', genome,'-o', outfile, fexpname], stdout=log, stderr=err)
         if return_code != 0:
             errInfo = "!"
             with open(errfile, "r") as err:
