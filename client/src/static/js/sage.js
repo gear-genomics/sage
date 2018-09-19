@@ -10,11 +10,7 @@ $('#mainTab a').on('click', function(e) {
 const resultLink = document.getElementById('link-results')
 
 const submitButton = document.getElementById('btn-submit')
-submitButton.addEventListener('click', function() {
-  resultLink.click()
-  run()
-})
-
+submitButton.addEventListener('click', showUpload)
 const exampleButton = document.getElementById('btn-example')
 exampleButton.addEventListener('click', showExample)
 
@@ -26,19 +22,32 @@ const targetTabs = document.getElementById('target-tabs')
 const resultInfo = document.getElementById('result-info')
 const resultError = document.getElementById('result-error')
 
-// TODO client-side validation
-function run() {
-  const formData = new FormData()
-  formData.append('queryFile', inputFile.files[0])
-  const target = targetTabs.querySelector('a.active').id
+function showExample() {
+  run("example")
+}
 
-  if (target.startsWith('target-genome')) {
-    const genome = targetGenomes.querySelector('option:checked').value
-    formData.append('genome', genome)
-  } else if (target.startsWith('target-fasta')) {
-    formData.append('fastaFile', targetFastaFile.files[0])
-  } else if (target.startsWith('target-chromatogram')) {
-    formData.append('chromatogramFile', targetChromatogramFile.files[0])
+function showUpload() {
+  run("data")
+}
+
+// TODO client-side validation
+function run(stat) {
+  resultLink.click()
+  const formData = new FormData()
+  if (stat == "example") {
+    formData.append('showExample', 'showExample')
+  } else {
+    formData.append('queryFile', inputFile.files[0])
+    const target = targetTabs.querySelector('a.active').id
+
+    if (target.startsWith('target-genome')) {
+      const genome = targetGenomes.querySelector('option:checked').value
+      formData.append('genome', genome)
+    } else if (target.startsWith('target-fasta')) {
+      formData.append('fastaFile', targetFastaFile.files[0])
+    } else if (target.startsWith('target-chromatogram')) {
+      formData.append('chromatogramFile', targetChromatogramFile.files[0])
+    }
   }
   
   traceView.deleteContent()
@@ -73,7 +82,7 @@ async function handleSuccess(res) {
     traceView.displayData(res.data)
 }
 
-function showExample() {
+function shoswExample() {
     resultLink.click()
     const formData = new FormData()
     formData.append('showExample', 'showExample')
