@@ -23,7 +23,6 @@ const targetFastaFile = document.getElementById('targetFileFasta')
 const targetChromatogramFile = document.getElementById('targetFileChromatogram')
 const targetGenomes = document.getElementById('target-genome')
 const targetTabs = document.getElementById('target-tabs')
-const resultContainer = document.getElementById('result-container')
 const resultInfo = document.getElementById('result-info')
 const resultError = document.getElementById('result-error')
 
@@ -43,8 +42,8 @@ function run() {
   }
   
   traceView.deleteContent()
-  hideElement(resultContainer)
   hideElement(resultError)
+  traceView.deleteContent()
   showElement(resultInfo)
 
   axios
@@ -62,6 +61,7 @@ function run() {
           .join('; ')
       }
       hideElement(resultInfo)
+      traceView.deleteContent()
       showElement(resultError)
       resultError.querySelector('#error-message').textContent = errorMessage
     })
@@ -70,7 +70,6 @@ function run() {
 async function handleSuccess(res) {
     hideElement(resultInfo)
     hideElement(resultError)
-    showElement(resultContainer)
     traceView.displayData(res.data)
 }
 
@@ -78,8 +77,8 @@ function showExample() {
     resultLink.click()
     const formData = new FormData()
     formData.append('showExample', 'showExample')
-    hideElement(resultContainer)
     hideElement(resultError)
+    traceView.deleteContent()
     showElement(resultInfo)
     axios
 	.post(`${API_URL}/upload`, formData)

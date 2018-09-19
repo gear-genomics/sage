@@ -2,17 +2,17 @@
 //
 //  Data must be of this structure:
 //  {
-//  "pos": [1, 2, ...],
-//  "peakA": [0, 0, 0, ...],
-//  "peakC": [4138, 3984, ...],
-//  "peakG": [0, 0, 0, 0, ...],
-//  "peakT": [1265, 1134, ...],
-//  "basecallPos": [12, 34,  ...],
-//  "basecalls": {"12":"1:C", "34":"2:C", "41":"3:C",
-//  "refchr": "example",
-//  "refpos": 32,
-//  "refalign": "CCCGGCAT...",
-//  "forward": 1
+//  "pos": [1, 2, ...],            # Ignored
+//  "peakA": [0, 0, 0, ...],       # Essential
+//  "peakC": [4138, 3984, ...],    # Essential
+//  "peakG": [0, 0, 0, 0, ...],    # Essential
+//  "peakT": [1265, 1134, ...],    # Essential
+//  "basecallPos": [12, 34,  ...], # Essential
+//  "basecalls": {"12":"1:C", "34":"2:C", "41":"3:C",    # Essential
+//  "refchr": "example",           # Optional
+//  "refpos": 32,                  # Optional
+//  "refalign": "CCCGGCAT...",     # Optional
+//  "forward": 1                   # Optional
 //  }
 //
 
@@ -21,8 +21,31 @@ module.exports = {
     deleteContent: deleteContent
 };
 
+// Global Values
+var winXst;
+var winXend;
+var winYend;
+var frameXst;
+var frameXend;
+var frameYst;
+var frameYend;
+var allResults;
+var baseCol;
+
+function resetGlobalValues() {
+    winXst = 0;
+    winXend = 600;
+    winYend = 2300;
+    frameXst = 0;
+    frameXend = 1000;
+    frameYst = 0;
+    frameYend = 200;
+    baseCol = [["green",1.5],["blue",1.5],["black",1.5],["red",1.5]];
+    allResults = "";
+}
+
 function createButtons() {
-    var html = '<div id="traceViewButtons" class="d-none">';
+    var html = '<div id="traceView-Buttons" class="d-none">';
     html += '  <button id="traceView-nav-bw-win" class="btn btn-outline-secondary">prev</button>';
     html += '  <button id="traceView-nav-bw-bit" class="btn btn-outline-secondary">&lt;</button>';
     html += '  <button id="traceView-nav-zy-in" class="btn btn-outline-secondary">Bigger Peaks</button>';
@@ -38,8 +61,15 @@ function createButtons() {
     html += '  <button id="traceView-nav-hi-t" class="btn btn-outline-secondary"><strong>T</strong></button>';
     html += '  <button id="traceView-nav-hi-n" class="btn btn-outline-secondary">ACGT</button>';
     html += '</div>';
-    html += '<div id="traceViewTraces"></div>';
-    html += '<div id="traceViewSequences"></div>';
+    html += '<div id="traceView-Traces"></div>';
+    html += '<div id="traceView-Sequence" class="d-none">';
+    html += '  <hr>\n  <p>Chromatogram Sequence:</p>';
+    html += '<textarea class="form-control" id="traceView-traceSeq" rows="7" cols="110"></textarea>';
+    html += '</div>';
+    html += '<div id="traceView-Reference" class="d-none">';
+    html += '  <hr>\n  <p>Reference Sequence:</p>';
+    html += '<textarea class="form-control" id="traceView-refSeq" rows="7" cols="110"></textarea>';
+    html += '</div>';
     return html;
 }
 
@@ -52,7 +82,8 @@ function hideElement(element) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-    var trv = document.getElementById('traceView')
+    resetGlobalValues();
+    var trv = document.getElementById('traceView');
     trv.innerHTML = createButtons();
 
     var navBwWinButton = document.getElementById('traceView-nav-bw-win')
@@ -82,15 +113,6 @@ document.addEventListener("DOMContentLoaded", function() {
     var navHiNButton = document.getElementById('traceView-nav-hi-n')
     navHiNButton.addEventListener('click', navHiN)
 });
-
-
-var winXst = 0;
-var winXend = 600;
-var winYend = 2300;
-var allResults;
-
-var baseCol = [["green",1.5],["blue",1.5],["black",1.5],["red",1.5]];
-
 
 function navFaintCol() {
     baseCol = [["#a6d3a6",1.5],["#a6a6ff",1.5],["#a6a6a6",1.5],["#ffa6a6",1.5]];
@@ -195,13 +217,11 @@ function navFwWin() {
 }
 
 function SVGRepaint(){
-    var retVal = createSVG(allResults,winXst,winXend,winYend,0,1000,0,200);
-    digShowSVG(retVal, 1250, 500);
+    var retVal = createSVG(allResults,winXst,winXend,winYend,frameXst,frameXend,frameYst,frameYend);
+    digShowSVG(retVal);
 }
 
 function displayTextSeq (tr) {
-    var ret = '  <hr>\n  <p>Chromatogram Sequence:</p>';
-    ret += '<textarea class="form-control" id="traceView-traceSeq" rows="7" cols="110">'
     var seq = "";
     for (var i = 0; i < tr.basecallPos.length; i++) {
         var base = tr.basecalls[tr.basecallPos[i]] + " ";
@@ -211,19 +231,21 @@ function displayTextSeq (tr) {
     //    }
         seq += base.charAt(pos + 1);
     }
-    ret += seq.replace(/-/g,"");
-    ret += '  </textarea>';
-    ret += '  <hr>\n  <p>Reference Sequence:</p>'
-    ret += '<textarea class="form-control" id="traceView-refSeq" rows="7" cols="110">';
-    var ref = tr.refalign;
-    ret += ref.replace(/-/g,"");
-    ret += '  </textarea>\n  <br />';
+    var outField = document.getElementById('traceView-traceSeq')
+    outField.value = seq.replace(/-/g,"");
+    var trSeq = document.getElementById('traceView-Sequence');
+    showElement(trSeq);
 
-    var trv = document.getElementById('traceViewSequences')
-    trv.innerHTML = ret;
+    if (tr.hasOwnProperty('refalign')){
+        var ref = tr.refalign;
+        var outField2 = document.getElementById('traceView-refSeq')
+        outField2.value = ref.replace(/-/g,"");
+        var refSeq = document.getElementById('traceView-Reference');
+        showElement(refSeq);
+    } 
 }
 
-function digShowSVG(svg, x, y) {
+function digShowSVG(svg) {
     var retVal = svg;
     var regEx1 = /</g;
     retVal = retVal.replace(regEx1, "%3C");
@@ -231,20 +253,22 @@ function digShowSVG(svg, x, y) {
     retVal = retVal.replace(regEx2, "%3E");
     var regEx3 = /#/g;
     retVal = retVal.replace(regEx3, "%23");
-    retVal = '<img src="data:image/svg+xml,' + retVal;
-    retVal += '" alt="Digest-SVG" width="' + x + '" height="' + y +'">';
-    var sectionResults = document.getElementById('traceViewTraces')
+    retVal = '<img src="data:image/svg+xml,' + retVal + '" alt="Digest-SVG">';
+    var sectionResults = document.getElementById('traceView-Traces')
     sectionResults.innerHTML = retVal;
 }
 
 function createSVG(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend) {
-    var retVal = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='-60 0 1200 350'>";
-
-    retVal += createAllCalls(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
+    var retVal = createAllCalls(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
     retVal += createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-
     retVal += "</svg>";
-    return retVal;
+    var head;
+    if (tr.hasOwnProperty('refalign')) {
+        head = "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='360' viewBox='-60 -40 1200 360'>";
+    } else {
+        head = "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='280' viewBox='-60 -40 1200 280'>";
+    }
+    return head + retVal;
 }
 
 function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
@@ -310,7 +334,7 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
 
     var refOrient = "";
     if(tr.hasOwnProperty('forward')){
-        if(tr.forward === 0) {
+        if(tr.forward == 1) {
             if(tr.hasOwnProperty('refpos')){
                 firstBase = parseInt(tr.refpos) + parseInt(firstBase);
                 lastBase = parseInt(tr.refpos) + parseInt(lastBase);
@@ -412,16 +436,13 @@ function errorMessage(err) {
     html += '  <span id="error-message">' + err;
     html += '  </span>';
     html += '</div>';
-    var trTrc = document.getElementById('traceViewTraces');
+    var trTrc = document.getElementById('traceView-Traces');
     trTrc.innerHTML = html;
 }
 
 function displayData(res) {
-    allResults = res
-    winXst = 0;
-    winXend = 600;
-    winYend = 2300;
-    navHiN();
+    resetGlobalValues();
+    allResults = res;
     if (allResults.hasOwnProperty('peakA') == false){
         errorMessage("Bad JSON data: peakA array missing!");
         return;
@@ -446,20 +467,24 @@ function displayData(res) {
         errorMessage("Bad JSON data: basecalls array missing!");
         return;
     }
-
     displayTextSeq(allResults);
-    var retVal = createSVG(allResults,winXst,winXend,winYend,0,1000,0,200);
-    digShowSVG(retVal, 1250, 500);
-    var trBtn = document.getElementById('traceViewButtons');
+    SVGRepaint();
+    var trBtn = document.getElementById('traceView-Buttons');
     showElement(trBtn);
 }
 
 function deleteContent() {
-    var trBtn = document.getElementById('traceViewButtons');
+    var trBtn = document.getElementById('traceView-Buttons');
     hideElement(trBtn);
-    var trTrc = document.getElementById('traceViewTraces');
+    var trTrc = document.getElementById('traceView-Traces');
     trTrc.innerHTML = "";
-    var trSeq = document.getElementById('traceViewSequences');
-    trSeq.innerHTML = "";
+    var trSeq = document.getElementById('traceView-Sequence');
+    hideElement(trSeq);
+    var outField = document.getElementById('traceView-traceSeq')
+    outField.value = "";
+    var refSeq = document.getElementById('traceView-Reference');
+    hideElement(refSeq);
+    var outField2 = document.getElementById('traceView-refSeq')
+    outField2.value = "";
 }
 
