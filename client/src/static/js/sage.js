@@ -82,33 +82,6 @@ async function handleSuccess(res) {
     traceView.displayData(res.data)
 }
 
-function shoswExample() {
-    resultLink.click()
-    const formData = new FormData()
-    formData.append('showExample', 'showExample')
-    hideElement(resultError)
-    traceView.deleteContent()
-    showElement(resultInfo)
-    axios
-	.post(`${API_URL}/upload`, formData)
-	.then(res => {
-	    if (res.status === 200) {
-		handleSuccess(res.data)
-	    }
-	})
-	.catch(err => {
-	    let errorMessage = err
-	    if (err.response) {
-		errorMessage = err.response.data.errors
-		    .map(error => error.title)
-		    .join('; ')
-	    }
-	    hideElement(resultInfo)
-	    showElement(resultError)
-	    resultError.querySelector('#error-message').textContent = errorMessage
-	})
-}
-
 function showElement(element) {
   element.classList.remove('d-none')
 }
