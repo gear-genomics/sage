@@ -5,6 +5,9 @@ src/sage
 fm/
 data/
 bin/
+server/run.sh
+*.pyc
+*.*~
 
 # Prerequisites
 *.d
