@@ -34,14 +34,14 @@ function showUpload() {
 function run(stat) {
   resultLink.click()
   const formData = new FormData()
+  const lTrim = Number.parseInt(leftTrim.value, 10)
+  const rTrim = Number.parseInt(rightTrim.value, 10)
+  formData.append('leftTrim', lTrim)
+  formData.append('rightTrim', rTrim)
   if (stat == "example") {
     formData.append('showExample', 'showExample')
   } else {
     formData.append('queryFile', inputFile.files[0])
-    const lTrim = Number.parseInt(leftTrim.value, 10)
-    const rTrim = Number.parseInt(rightTrim.value, 10)
-    formData.append('leftTrim', lTrim)
-    formData.append('rightTrim', rTrim)
     const target = targetTabs.querySelector('a.active').id
 
     if (target.startsWith('target-genome')) {

@@ -2,13 +2,18 @@
 //
 //  Data must be of this structure:
 //  {
-//  "pos": [1, 2, ...],            # Ignored
+//  "gappedTrace":
+//  {
+//  "traceFileName": "trace",
+//  "leadingGaps": 2,
+//  "trailingGaps": 1,
 //  "peakA": [0, 0, 0, ...],       # Essential
 //  "peakC": [4138, 3984, ...],    # Essential
 //  "peakG": [0, 0, 0, 0, ...],    # Essential
 //  "peakT": [1265, 1134, ...],    # Essential
 //  "basecallPos": [12, 34,  ...], # Essential
 //  "basecalls": {"12":"1:C", "34":"2:C", "41":"3:C",    # Essential
+//  }
 //  "refchr": "example",           # Optional
 //  "refpos": 32,                  # Optional
 //  "refalign": "CCCGGCAT...",     # Optional
@@ -223,8 +228,8 @@ function SVGRepaint(){
 
 function displayTextSeq (tr) {
     var seq = "";
-    for (var i = 0; i < tr.basecallPos.length; i++) {
-        var base = tr.basecalls[tr.basecallPos[i]] + " ";
+    for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
+        var base = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]] + " ";
         var pos = base.indexOf(":");
     //    if ((i % 60) === 0 && i != 0) {
     //        seq += "\n";
@@ -283,8 +288,8 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
 
     var prim = "";
     var sec = "";
-    for (var i = 0; i < tr.basecallPos.length; i++) {
-        var base = tr.basecalls[tr.basecallPos[i]] + " ";
+    for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
+        var base = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]] + " ";
         var pos = base.indexOf(":");
     //    if ((i % 60) === 0 && i != 0) {
     //        seq += "\n";
@@ -300,25 +305,26 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
     // The X-Axis
     var firstBase = -1;
     var lastBase = -1;
-    for (var i = 0; i < tr.basecallPos.length; i++) {
-        if ((parseFloat(tr.basecallPos[i]) > startX) &&
-            (parseFloat(tr.basecallPos[i]) < endX)) {
+    for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
+        if ((parseFloat(tr.gappedTrace.basecallPos[i]) > startX) &&
+            (parseFloat(tr.gappedTrace.basecallPos[i]) < endX)) {
             if (firstBase === -1) {
-                firstBase = tr.basecalls[tr.basecallPos[i]];
+                firstBase = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]];
             }
-            lastBase = tr.basecalls[tr.basecallPos[i]];
-            var xPos = wdXst + (parseFloat(tr.basecallPos[i]) - startX) / (endX - startX)  * (wdXend - wdXst);
+            lastBase = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]];
+            var xPos = wdXst + (parseFloat(tr.gappedTrace.basecallPos[i]) - startX) / (endX - startX)  * (wdXend - wdXst);
             retVal += "<line x1='" + xPos + "' y1='" + lineYend;
             retVal += "' x2='" + xPos + "' y2='" + (lineYend + 7)+ "' stroke-width='2' stroke='black' />";
             retVal += "<text x='" + (xPos + 3) + "' y='" + (lineYend + 11);
             retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end' transform='rotate(-90 ";
             retVal += (xPos + 3) + "," + (lineYend + 11) + ")'>";
-            retVal += tr.basecalls[tr.basecallPos[i]] + "</text>";
+            retVal += tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]] + "</text>";
 
             if(tr.hasOwnProperty('refalign')){
-                if (!(tr.refalign.charAt(i) === prim.charAt(i) && tr.refalign.charAt(i) === sec.charAt(i))) {
+                var lg = parseInt(tr.gappedTrace.leadingGaps)
+                if (!(tr.refalign.charAt(i + lg) === prim.charAt(i) && tr.refalign.charAt(i + lg) === sec.charAt(i))) {
                     var refcol = "red";
-                    if (tr.refalign.charAt(i) === prim.charAt(i) || tr.refalign.charAt(i) === sec.charAt(i)) {
+                    if (tr.refalign.charAt(i + lg) === prim.charAt(i) || tr.refalign.charAt(i + lg) === sec.charAt(i)) {
                         refcol = "orange";
                     }
                     retVal += "<rect x='" + (xPos - 5) + "' y='" + (lineYend + 63);
@@ -326,7 +332,7 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
                 }
                 retVal += "<text x='" + (xPos + 3) + "' y='" + (lineYend + 71);
                 retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
-                retVal += tr.refalign.charAt(i);
+                retVal += tr.refalign.charAt(i + lg);
                 retVal +=  "</text>";
             }
         }
@@ -393,10 +399,10 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
 }
 
 function createAllCalls(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
-    var retVal = createOneCalls(tr.peakA,baseCol[0],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-    retVal += createOneCalls(tr.peakC,baseCol[1],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-    retVal += createOneCalls(tr.peakG,baseCol[2],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-    retVal += createOneCalls(tr.peakT,baseCol[3],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
+    var retVal = createOneCalls(tr.gappedTrace.peakA,baseCol[0],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
+    retVal += createOneCalls(tr.gappedTrace.peakC,baseCol[1],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
+    retVal += createOneCalls(tr.gappedTrace.peakG,baseCol[2],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
+    retVal += createOneCalls(tr.gappedTrace.peakT,baseCol[3],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
     return retVal;
 }
 
@@ -443,27 +449,31 @@ function errorMessage(err) {
 function displayData(res) {
     resetGlobalValues();
     allResults = res;
-    if (allResults.hasOwnProperty('peakA') == false){
+    if (allResults.hasOwnProperty('gappedTrace') == false){
+        errorMessage("Bad JSON data: gappedTrace hash missing!");
+        return;
+    }
+    if (allResults.gappedTrace.hasOwnProperty('peakA') == false){
         errorMessage("Bad JSON data: peakA array missing!");
         return;
     }
-    if (allResults.hasOwnProperty('peakC') == false){
+    if (allResults.gappedTrace.hasOwnProperty('peakC') == false){
         errorMessage("Bad JSON data: peakC array missing!");
         return;
     }
-    if (allResults.hasOwnProperty('peakG') == false){
+    if (allResults.gappedTrace.hasOwnProperty('peakG') == false){
         errorMessage("Bad JSON data: peakG array missing!");
         return;
     }
-    if (allResults.hasOwnProperty('peakT') == false){
+    if (allResults.gappedTrace.hasOwnProperty('peakT') == false){
         errorMessage("Bad JSON data: peakt array missing!");
         return;
     }
-    if (allResults.hasOwnProperty('basecallPos') == false){
+    if (allResults.gappedTrace.hasOwnProperty('basecallPos') == false){
         errorMessage("Bad JSON data: basecallPos array missing!");
         return;
     }
-    if (allResults.hasOwnProperty('basecalls') == false){
+    if (allResults.gappedTrace.hasOwnProperty('basecalls') == false){
         errorMessage("Bad JSON data: basecalls array missing!");
         return;
     }

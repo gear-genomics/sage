@@ -33,6 +33,13 @@ def upload_file():
             os.makedirs(sf)
 
         # Experiment
+        if 'leftTrim' not in request.form.keys():
+            return jsonify(errors=[{"title": "leftTrim parameter name is missing!"}]), 400
+        if 'rightTrim' not in request.form.keys():
+            return jsonify(errors=[{"title": "rightTrim parameter name is missing!"}]), 400
+        lTrim = request.form['leftTrim']
+        rTrim = request.form['rightTrim']
+
         if 'showExample' in request.form.keys():
             fexpname = os.path.join(SAGEWS, "sample.abi")
             genome = os.path.join(SAGEWS, "sample.fa")
@@ -73,13 +80,18 @@ def upload_file():
                 return jsonify(errors = [{"title": "No input reference file provided!"}]), 400
 
         # Run sage
-        outfile = os.path.join(sf, "sage_" + uuidstr + ".json")
+        outfile = os.path.join(sf, "sage_" + uuidstr)
         logfile = os.path.join(sf, "sage_" + uuidstr + ".log")
         errfile = os.path.join(sf, "sage_" + uuidstr + ".err")
         with open(logfile, "w") as log:
             with open(errfile, "w") as err:
-                try: 
-                    return_code = call(['tracy', 'align', '-g', genome,'-o', outfile, fexpname], stdout=log, stderr=err)
+                try:
+                    return_code = call(['tracy', 'align',
+                                        '--trimLeft', lTrim,
+                                        '--trimRight', rTrim,
+                                        '-r', genome,
+                                        '-o', outfile,
+                                        fexpname], stdout=log, stderr=err)
                 except OSError as e:
                     if e.errno == os.errno.ENOENT:
                         return jsonify(errors = [{"title": "Binary ./tracy not found!"}]), 400
@@ -90,12 +102,16 @@ def upload_file():
             with open(errfile, "r") as err:
                 errInfo = ": " + err.read()
             return jsonify(errors = [{"title": "Error in running sage" + errInfo}]), 400
-        return jsonify(data = json.loads(open(outfile).read()))
+        return jsonify(data = json.loads(open(outfile + ".json").read()))
     return jsonify(errors = [{"title": "Error in handling POST request!"}]), 400
 
 @app.route('/api/v1/genomeindex', methods=['POST'])
 def genomeind():
     return send_from_directory(os.path.join(SAGEWS, "../fm"),"genomeindexindex.json"), 200
+
+@app.route('/api/v1/health', methods=['GET'])
+def health():
+    return jsonify(status="OK")
 
 if __name__ == '__main__':
     app.run(host = '0.0.0.0', port=3300, debug = True, threaded=True)
