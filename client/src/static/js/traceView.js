@@ -1,23 +1,23 @@
-//  TraceView displays trace information
+//  TraceView displays trace information aligned to a reference.
 //
-//  Data must be of this structure:
+//  Expected data structure:
 //  {
-//  "gappedTrace":
-//  {
-//  "traceFileName": "trace",
-//  "leadingGaps": 2,
-//  "trailingGaps": 1,
-//  "peakA": [0, 0, 0, ...],       # Essential
-//  "peakC": [4138, 3984, ...],    # Essential
-//  "peakG": [0, 0, 0, 0, ...],    # Essential
-//  "peakT": [1265, 1134, ...],    # Essential
-//  "basecallPos": [12, 34,  ...], # Essential
-//  "basecalls": {"12":"1:C", "34":"2:C", "41":"3:C",    # Essential
-//  }
-//  "refchr": "example",           # Optional
-//  "refpos": 32,                  # Optional
-//  "refalign": "CCCGGCAT...",     # Optional
-//  "forward": 1                   # Optional
+//    "gappedTrace": {
+//      "traceFileName": "trace",
+//      "leadingGaps": 2,
+//      "trailingGaps": 1,
+//      "peakA": [0, 0, 0, ...],       // Required
+//      "peakC": [4138, 3984, ...],    // Required
+//      "peakG": [0, 0, 0, 0, ...],    // Required
+//      "peakT": [1265, 1134, ...],    // Required
+//      "basecallPos": [12, 34, ...],  // Required
+//      "basecallQual": [40, 38, ...], // Optional but recommended (Phred)
+//      "basecalls": { "12": "1:C", "34": "2:C", ... } // Required
+//    },
+//    "refchr": "example",    // Optional
+//    "refpos": 32,           // Optional (genomic start)
+//    "refalign": "CCCGGC...",// Optional, gapped to match leading/trailing gaps
+//    "forward": 1            // Optional (1=fwd, 0=rev)
 //  }
 //
 
@@ -26,7 +26,7 @@ module.exports = {
     deleteContent: deleteContent
 };
 
-// Global Values
+// Global state
 var winXst;
 var winXend;
 var winYend;
@@ -36,6 +36,15 @@ var frameYst;
 var frameYend;
 var allResults;
 var baseCol;
+var traceSeqString = "";
+var refAlignString = "";
+var refSeqGapless = "";
+
+// Drag state
+var isDragging = false;
+var dragStartX = 0;
+var dragWinXst = 0;
+var dragWinXend = 0;
 
 function resetGlobalValues() {
     winXst = 0;
@@ -47,6 +56,9 @@ function resetGlobalValues() {
     frameYend = 200;
     baseCol = [["green",1.5],["blue",1.5],["black",1.5],["red",1.5]];
     allResults = "";
+    traceSeqString = "";
+    refAlignString = "";
+    refSeqGapless = "";
 }
 
 function createButtons() {
@@ -67,13 +79,24 @@ function createButtons() {
     html += '  <button id="traceView-nav-hi-n" class="btn btn-outline-secondary">ACGT</button>';
     html += '</div>';
     html += '<div id="traceView-Traces"></div>';
+    html += '<div id="traceView-tooltip" class="traceView-tooltip d-none" style="position:absolute; pointer-events:none; background:rgba(255,255,255,0.95); border:1px solid #ccc; border-radius:4px; padding:6px; font-size:12px;"></div>';
     html += '<div id="traceView-Sequence" class="d-none">';
     html += '  <hr>\n  <p>Chromatogram Sequence:</p>';
-    html += '<textarea class="form-control" id="traceView-traceSeq" rows="7" cols="110"></textarea>';
+    html += '  <div id="traceView-traceSeqView" class="form-control" style="white-space: pre-wrap; font-family: monospace; min-height: 7em; cursor: text;"></div>';
+    html += '  <div class="mt-1 d-flex align-items-center">';
+    html += '    <button id="traceView-copy-view" class="btn btn-sm btn-outline-secondary mr-2">Copy view range</button>';
+    html += '    <button id="traceView-copy-full" class="btn btn-sm btn-outline-secondary mr-2">Copy full</button>';
+    html += '  </div>';
+    html += '  <textarea id="traceView-traceSeq" class="d-none" readonly></textarea>';
     html += '</div>';
     html += '<div id="traceView-Reference" class="d-none">';
     html += '  <hr>\n  <p>Reference Sequence:</p>';
-    html += '<textarea class="form-control" id="traceView-refSeq" rows="7" cols="110"></textarea>';
+    html += '  <div id="traceView-refSeqView" class="form-control" style="white-space: pre-wrap; font-family: monospace; min-height: 7em;"></div>';
+    html += '  <div class="mt-1 d-flex align-items-center">';
+    html += '    <button id="traceView-ref-copy-view" class="btn btn-sm btn-outline-secondary mr-2">Copy view range</button>';
+    html += '    <button id="traceView-ref-copy-full" class="btn btn-sm btn-outline-secondary mr-2">Copy full</button>';
+    html += '  </div>';
+    html += '  <textarea class="d-none" id="traceView-refSeq" readonly></textarea>';
     html += '</div>';
     return html;
 }
@@ -117,7 +140,43 @@ document.addEventListener("DOMContentLoaded", function() {
     navHiTButton.addEventListener('click', navHiT)
     var navHiNButton = document.getElementById('traceView-nav-hi-n')
     navHiNButton.addEventListener('click', navHiN)
+
+    document.getElementById('traceView-copy-view').addEventListener('click', copyViewRange);
+    document.getElementById('traceView-copy-full').addEventListener('click', copyFull);
+    document.getElementById('traceView-ref-copy-view').addEventListener('click', copyRefViewRange);
+    document.getElementById('traceView-ref-copy-full').addEventListener('click', copyRefFull);
+
+    attachDragHandlers();
+    attachWheelZoom();
+    attachTooltipHandlers();
 });
+
+// Integer window start and end
+function getIntWindow(startX, endX, maxLen) {
+    var s = Math.max(0, Math.floor(startX));
+    var e = Math.min(maxLen, Math.ceil(endX));
+    if (e <= s) e = s + 1;
+    return { s: s, e: e };
+}
+
+// Set window bounds
+function checkWindow(maxX) {
+    if (!isFinite(winXst) || !isFinite(winXend)) {
+        winXst = 0; winXend = 1;
+    }
+    if (winXend <= winXst) {
+        winXend = winXst + 1;
+    }
+    if (winXst < 0) {
+        var d = -winXst; winXst = 0; winXend += d;
+    }
+    if (maxX >= 0 && winXend > maxX) {
+        var over = winXend - maxX;
+        winXst = Math.max(0, winXst - over);
+        winXend = maxX;
+    }
+    if (winXend - winXst < 1) winXend = winXst + 1;
+}
 
 function navFaintCol() {
     baseCol = [["#a6d3a6",1.5],["#a6a6ff",1.5],["#a6a6a6",1.5],["#ffa6a6",1.5]];
@@ -222,8 +281,11 @@ function navFwWin() {
 }
 
 function SVGRepaint(){
+    if (!allResults || !allResults.gappedTrace || !allResults.gappedTrace.peakA) return;
+    checkWindow(allResults.gappedTrace.peakA.length - 1);
     var retVal = createSVG(allResults,winXst,winXend,winYend,frameXst,frameXend,frameYst,frameYend);
     digShowSVG(retVal);
+    updateHighlight(allResults);
 }
 
 function displayTextSeq (tr) {
@@ -231,36 +293,37 @@ function displayTextSeq (tr) {
     for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
         var base = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]] + " ";
         var pos = base.indexOf(":");
-    //    if ((i % 60) === 0 && i != 0) {
-    //        seq += "\n";
-    //    }
         seq += base.charAt(pos + 1);
     }
-    var outField = document.getElementById('traceView-traceSeq')
-    outField.value = seq.replace(/-/g,"");
+    traceSeqString = seq.replace(/-/g,"");
+    var hidden = document.getElementById('traceView-traceSeq');
+    hidden.value = traceSeqString;
     var trSeq = document.getElementById('traceView-Sequence');
     showElement(trSeq);
 
     if (tr.hasOwnProperty('refalign')){
-        var ref = tr.refalign;
+        refAlignString = tr.refalign || "";
+        refSeqGapless = refAlignString.replace(/-/g,"");
         var outField2 = document.getElementById('traceView-refSeq')
-        outField2.value = ref.replace(/-/g,"");
+        outField2.value = refSeqGapless;
         var refSeq = document.getElementById('traceView-Reference');
         showElement(refSeq);
-    } 
+    } else {
+        refAlignString = "";
+        refSeqGapless = "";
+    }
+    renderSeqView(tr);
+    renderRefView(tr);
 }
 
+// Faster: inline SVG instead of data URL image
 function digShowSVG(svg) {
-    var retVal = svg;
-    var regEx1 = /</g;
-    retVal = retVal.replace(regEx1, "%3C");
-    var regEx2 = />/g;
-    retVal = retVal.replace(regEx2, "%3E");
-    var regEx3 = /#/g;
-    retVal = retVal.replace(regEx3, "%23");
-    retVal = '<img src="data:image/svg+xml,' + retVal + '" alt="Digest-SVG">';
-    var sectionResults = document.getElementById('traceView-Traces')
-    sectionResults.innerHTML = retVal;
+    var sectionResults = document.getElementById('traceView-Traces');
+    if (sectionResults.firstElementChild && sectionResults.firstElementChild.tagName.toLowerCase() === 'svg') {
+        sectionResults.firstElementChild.outerHTML = svg;
+    } else {
+        sectionResults.innerHTML = svg;
+    }
 }
 
 function createSVG(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend) {
@@ -277,6 +340,9 @@ function createSVG(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend) {
 }
 
 function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
+    var w = getIntWindow(startX, endX, tr.gappedTrace.peakA.length);
+    startX = w.s; endX = w.e;
+
     var lineXst = wdXst - 5;
     var lineXend = wdXend + 5;
     var lineYst = wdYst - 5;
@@ -291,9 +357,6 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
     for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
         var base = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]] + " ";
         var pos = base.indexOf(":");
-    //    if ((i % 60) === 0 && i != 0) {
-    //        seq += "\n";
-    //    }
         prim += base.charAt(pos + 1);
         if (pos + 3 < base.length) {
             sec += base.charAt(pos + 3);
@@ -306,13 +369,17 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
     var firstBase = -1;
     var lastBase = -1;
     for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
-        if ((parseFloat(tr.gappedTrace.basecallPos[i]) > startX) &&
-            (parseFloat(tr.gappedTrace.basecallPos[i]) < endX)) {
+        var posVal = parseFloat(tr.gappedTrace.basecallPos[i]);
+        if ((posVal > startX) && (posVal < endX)) {
             if (firstBase === -1) {
                 firstBase = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]];
             }
             lastBase = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]];
-            var xPos = wdXst + (parseFloat(tr.gappedTrace.basecallPos[i]) - startX) / (endX - startX)  * (wdXend - wdXst);
+            var xPos = wdXst + (posVal - startX) / (endX - startX)  * (wdXend - wdXst);
+            var baseChar = prim.charAt(i);
+            var qual = (tr.gappedTrace.basecallQual && tr.gappedTrace.basecallQual.length > i) ? tr.gappedTrace.basecallQual[i] : "";
+            retVal += "<g class='traceView-base-tick' data-idx='" + i + "' data-pos='" + tr.gappedTrace.basecallPos[i];
+            retVal += "' data-base='" + baseChar + "' data-qual='" + qual + "'>";
             retVal += "<line x1='" + xPos + "' y1='" + lineYend;
             retVal += "' x2='" + xPos + "' y2='" + (lineYend + 7)+ "' stroke-width='2' stroke='black' />";
             retVal += "<text x='" + (xPos + 3) + "' y='" + (lineYend + 11);
@@ -321,7 +388,7 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
             retVal += tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]] + "</text>";
 
             if(tr.hasOwnProperty('refalign')){
-                var lg = parseInt(tr.gappedTrace.leadingGaps)
+                var lg = parseInt(tr.gappedTrace.leadingGaps || 0, 10);
                 if (!(tr.refalign.charAt(i + lg) === prim.charAt(i) && tr.refalign.charAt(i + lg) === sec.charAt(i))) {
                     var refcol = "red";
                     if (tr.refalign.charAt(i + lg) === prim.charAt(i) || tr.refalign.charAt(i + lg) === sec.charAt(i)) {
@@ -335,6 +402,7 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
                 retVal += tr.refalign.charAt(i + lg);
                 retVal +=  "</text>";
             }
+            retVal += "</g>";
         }
     }
 
@@ -399,18 +467,20 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
 }
 
 function createAllCalls(tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
-    var retVal = createOneCalls(tr.gappedTrace.peakA,baseCol[0],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-    retVal += createOneCalls(tr.gappedTrace.peakC,baseCol[1],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-    retVal += createOneCalls(tr.gappedTrace.peakG,baseCol[2],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-    retVal += createOneCalls(tr.gappedTrace.peakT,baseCol[3],startX,endX,endY,wdXst,wdXend,wdYst,wdYend);
-    return retVal;
+    var w = getIntWindow(startX, endX, tr.gappedTrace.peakA.length);
+    return createOneCalls(tr.gappedTrace.peakA,baseCol[0],w.s,w.e,endY,wdXst,wdXend,wdYst,wdYend) +
+           createOneCalls(tr.gappedTrace.peakC,baseCol[1],w.s,w.e,endY,wdXst,wdXend,wdYst,wdYend) +
+           createOneCalls(tr.gappedTrace.peakG,baseCol[2],w.s,w.e,endY,wdXst,wdXend,wdYst,wdYend) +
+           createOneCalls(tr.gappedTrace.peakT,baseCol[3],w.s,w.e,endY,wdXst,wdXend,wdYst,wdYend);
 }
 
 function createOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
+    if (endX <= startX) return "";
     var startTag = "<polyline fill='none' stroke-linejoin='round' stroke='" + col[0];
     startTag += "' stroke-width='" + col[1] + "' points='";
     var retVal = "";
     var lastVal = -99;
+    var span = (endX - startX);
     for (var i = startX; i < endX; i++) {
         if(!(typeof trace[i] === 'undefined')){
             var iden = parseFloat(trace[i]);
@@ -425,7 +495,8 @@ function createOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
             if (iden > 1.0) {
                 iden = 1;
             }
-            var xPos = wdXst + (i - startX) / (endX - startX)  * (wdXend - wdXst);
+            if (span === 0) continue;
+            var xPos = wdXst + (i - startX) / span * (wdXend - wdXst);
             var yPos = wdYend - iden * (wdYend - wdYst);
             retVal += xPos + "," + yPos + " ";
         } 
@@ -435,6 +506,7 @@ function createOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
     }
     return retVal;
 }
+
 function errorMessage(err) {
     deleteContent();
     var html = '<div id="traceView-error" class="alert alert-danger" role="alert">';
@@ -449,35 +521,41 @@ function errorMessage(err) {
 function displayData(res) {
     resetGlobalValues();
     allResults = res;
-    if (allResults.hasOwnProperty('gappedTrace') == false){
-        errorMessage("Bad JSON data: gappedTrace hash missing!");
+    if (!allResults.hasOwnProperty('gappedTrace')){
+        errorMessage("Bad JSON data: gappedTrace object missing!");
         return;
     }
-    if (allResults.gappedTrace.hasOwnProperty('peakA') == false){
+    var gt = allResults.gappedTrace;
+    if (!gt.hasOwnProperty('peakA')){
         errorMessage("Bad JSON data: peakA array missing!");
         return;
     }
-    if (allResults.gappedTrace.hasOwnProperty('peakC') == false){
+    if (!gt.hasOwnProperty('peakC')){
         errorMessage("Bad JSON data: peakC array missing!");
         return;
     }
-    if (allResults.gappedTrace.hasOwnProperty('peakG') == false){
+    if (!gt.hasOwnProperty('peakG')){
         errorMessage("Bad JSON data: peakG array missing!");
         return;
     }
-    if (allResults.gappedTrace.hasOwnProperty('peakT') == false){
-        errorMessage("Bad JSON data: peakt array missing!");
+    if (!gt.hasOwnProperty('peakT')){
+        errorMessage("Bad JSON data: peakT array missing!");
         return;
     }
-    if (allResults.gappedTrace.hasOwnProperty('basecallPos') == false){
+    if (!gt.hasOwnProperty('basecallPos')){
         errorMessage("Bad JSON data: basecallPos array missing!");
         return;
     }
-    if (allResults.gappedTrace.hasOwnProperty('basecalls') == false){
-        errorMessage("Bad JSON data: basecalls array missing!");
+    if (!gt.hasOwnProperty('basecalls')){
+        errorMessage("Bad JSON data: basecalls object missing!");
+        return;
+    }
+    if (gt.hasOwnProperty('basecallQual') && gt.basecallQual.length !== gt.basecallPos.length){
+        errorMessage("Bad JSON data: basecallQual length mismatch with basecallPos!");
         return;
     }
     displayTextSeq(allResults);
+    attachSeqSelectionHandler(allResults);
     SVGRepaint();
     var trBtn = document.getElementById('traceView-Buttons');
     showElement(trBtn);
@@ -488,6 +566,8 @@ function deleteContent() {
     hideElement(trBtn);
     var trTrc = document.getElementById('traceView-Traces');
     trTrc.innerHTML = "";
+    var tooltip = document.getElementById('traceView-tooltip');
+    if (tooltip) hideElement(tooltip);
     var trSeq = document.getElementById('traceView-Sequence');
     hideElement(trSeq);
     var outField = document.getElementById('traceView-traceSeq')
@@ -498,3 +578,336 @@ function deleteContent() {
     outField2.value = "";
 }
 
+// Drag handlers (direction inverted: drag right -> earlier bases)
+function attachDragHandlers() {
+    var traces = document.getElementById('traceView-Traces');
+    if (!traces) return;
+
+    traces.style.cursor = 'grab';
+
+    traces.addEventListener('mousedown', function (e) {
+        isDragging = true;
+        dragStartX = e.clientX;
+        dragWinXst = winXst;
+        dragWinXend = winXend;
+        traces.style.cursor = 'grabbing';
+        e.preventDefault(); // avoid text selection
+    });
+
+    let rafPending = false;
+    function repaint() {
+        rafPending = false;
+        SVGRepaint();
+    }
+
+    window.addEventListener('mousemove', function (e) {
+        if (!isDragging) return;
+        if (!allResults || !allResults.gappedTrace || !allResults.gappedTrace.peakA) return;
+
+        var rect = traces.getBoundingClientRect();
+        var widthPx = rect.width || (frameXend - frameXst);
+        if (!widthPx || widthPx <= 0) return;
+
+        var basesPerPx = (dragWinXend - dragWinXst) / widthPx;
+        if (!isFinite(basesPerPx) || basesPerPx === 0) return;
+
+        var dxPx = e.clientX - dragStartX;
+        var deltaBases = dxPx * basesPerPx;
+
+        // Inverted direction: drag right -> earlier bases
+        var newSt = dragWinXst - deltaBases;
+        var newEnd = dragWinXend - deltaBases;
+
+        var maxX = allResults.gappedTrace.peakA.length - 1;
+        if (newSt < 0) { newEnd -= newSt; newSt = 0; }
+        if (newEnd > maxX) {
+            var over = newEnd - maxX;
+            newSt = Math.max(0, newSt - over);
+            newEnd = maxX;
+        }
+        if (newEnd - newSt < 10) newEnd = newSt + 10;
+
+        winXst = newSt;
+        winXend = newEnd;
+        checkWindow(maxX);
+
+        if (!rafPending) {
+            rafPending = true;
+            requestAnimationFrame(repaint);
+        }
+    });
+
+    function stopDrag() {
+        isDragging = false;
+        traces.style.cursor = 'grab';
+    }
+    window.addEventListener('mouseup', stopDrag);
+    window.addEventListener('mouseleave', stopDrag);
+}
+
+// Mouse wheel zoom (over the trace view)
+function attachWheelZoom() {
+    var traces = document.getElementById('traceView-Traces');
+    if (!traces) return;
+
+    traces.addEventListener('wheel', function(e) {
+        if (!allResults || !allResults.gappedTrace || !allResults.gappedTrace.peakA) return;
+
+        e.preventDefault(); // stop page scroll
+
+        var rect = traces.getBoundingClientRect();
+        var widthPx = rect.width || (frameXend - frameXst);
+        if (!widthPx || widthPx <= 0) return;
+
+        var span = winXend - winXst;
+        if (span <= 0) return;
+
+        // Mouse position in bases
+        var relPx = e.clientX - rect.left;
+        var relRatio = Math.min(1, Math.max(0, relPx / widthPx));
+        var centerBase = winXst + relRatio * span;
+
+        // Zoom factor
+        var factor = (e.deltaY < 0) ? 0.8 : 1.25; // up = zoom in, down = zoom out
+        var newSpan = span * factor;
+        if (newSpan < 10) newSpan = 10;
+
+        var newSt = centerBase - relRatio * newSpan;
+        var newEnd = newSt + newSpan;
+
+        var maxX = allResults.gappedTrace.peakA.length - 1;
+        if (newSt < 0) { newEnd -= newSt; newSt = 0; }
+        if (newEnd > maxX) {
+            var over = newEnd - maxX;
+            newSt = Math.max(0, newSt - over);
+            newEnd = maxX;
+        }
+        if (newEnd - newSt < 10) newEnd = newSt + 10;
+
+        winXst = newSt;
+        winXend = newEnd;
+        checkWindow(maxX);
+
+        requestAnimationFrame(SVGRepaint);
+    }, { passive: false });
+}
+
+// Hover tooltip over base ticks
+function attachTooltipHandlers() {
+    var traces = document.getElementById('traceView-Traces');
+    var tooltip = document.getElementById('traceView-tooltip');
+    if (!traces || !tooltip) return;
+
+    function hideTooltip() {
+        tooltip.classList.add('d-none');
+    }
+
+    traces.addEventListener('mouseleave', hideTooltip);
+
+    traces.addEventListener('mousemove', function(e){
+        var target = e.target.closest('.traceView-base-tick');
+        if (!target) {
+            hideTooltip();
+            return;
+        }
+        var base = target.dataset.base || "";
+        var qual = target.dataset.qual || "";
+        tooltip.innerHTML = "<div><strong>Base:</strong> " + escapeHtml(base) + "</div>" + "<div><strong>Quality:</strong> " + escapeHtml(qual) + "</div>";
+        tooltip.style.left = (e.clientX + window.scrollX + 12) + "px";
+        tooltip.style.top = (e.clientY + window.scrollY + 12) + "px";
+        tooltip.classList.remove('d-none');
+    });
+}
+
+// Select-to-center-and-zoom on chromatogram sequence (span-based)
+function attachSeqSelectionHandler(tr) {
+    var view = document.getElementById('traceView-traceSeqView');
+    if (!view || !tr || !tr.gappedTrace || !tr.gappedTrace.basecallPos || !tr.gappedTrace.basecallPos.length) return;
+
+    function getSpanIndex(node){
+        while (node && node !== view){
+            if (node.dataset && node.dataset.idx) return parseInt(node.dataset.idx, 10);
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    const handler = () => {
+        var sel = window.getSelection();
+        if (!sel || sel.rangeCount === 0) return;
+        var range = sel.getRangeAt(0);
+        var startIdx = getSpanIndex(range.startContainer);
+        var endIdx = getSpanIndex(range.endContainer);
+        if (startIdx === null || endIdx === null) return;
+        if (range.endOffset === 0) endIdx = endIdx - 1;
+        if (startIdx > endIdx) { var t=startIdx; startIdx=endIdx; endIdx=t; }
+        startIdx = Math.max(0,startIdx);
+        endIdx = Math.min(tr.gappedTrace.basecallPos.length-1, endIdx);
+        if (endIdx < startIdx) return;
+
+        var startBase = parseFloat(tr.gappedTrace.basecallPos[startIdx]);
+        var endBase   = parseFloat(tr.gappedTrace.basecallPos[endIdx]);
+        if (!isFinite(startBase) || !isFinite(endBase)) return;
+
+        var selSpan = Math.max(1, endBase - startBase + 1);
+        var spanWithMargin = Math.max(10, selSpan * 1.2);
+        var centerBase = (startBase + endBase) / 2;
+
+        winXst = centerBase - spanWithMargin / 2;
+        winXend = centerBase + spanWithMargin / 2;
+
+        checkWindow(tr.gappedTrace.peakA.length - 1);
+        SVGRepaint();
+    };
+
+    view.addEventListener('mouseup', handler);
+    view.addEventListener('keyup', handler);
+    view.addEventListener('select', handler);
+}
+
+// Render and highlight current view
+function renderSeqView(tr) {
+    var view = document.getElementById('traceView-traceSeqView');
+    if (!view) return;
+
+    var wrapLen = 60;
+    var rect = view.getBoundingClientRect();
+    var width = rect && rect.width ? rect.width : 0;
+    if (width > 0) {
+        var fs = parseFloat(window.getComputedStyle(view).fontSize) || 12;
+        var charW = fs * 0.62;
+        var calc = Math.floor(width / charW);
+        if (calc > 5) wrapLen = calc;
+    }
+
+    var html = [];
+    var len = Math.min(traceSeqString.length, tr.gappedTrace.basecallPos.length);
+    var maxX = tr.gappedTrace.peakA.length - 1;
+
+    checkWindow(maxX);
+    for (var i=0;i<len;i++){
+        if (i > 0 && i % wrapLen === 0) {
+            html.push('<br>');
+        }
+        var b = traceSeqString.charAt(i);
+        var posVal = parseFloat(tr.gappedTrace.basecallPos[i]);
+        var inView = (posVal >= winXst && posVal <= winXend);
+        var cls = inView ? 'text-primary font-weight-bold' : '';
+        html.push('<span data-idx="'+i+'" class="'+cls+'">'+escapeHtml(b)+'</span>');
+    }
+    view.innerHTML = html.join('');
+}
+
+// Reference render and highlight (gapped reference, aligned to trace)
+function renderRefView(tr){
+    var view = document.getElementById('traceView-refSeqView');
+    if (!view || !refAlignString) return;
+
+    var wrapLen = 60;
+    var rect = view.getBoundingClientRect();
+    var width = rect && rect.width ? rect.width : 0;
+    if (width > 0) {
+        var fs = parseFloat(window.getComputedStyle(view).fontSize) || 12;
+        var charW = fs * 0.62;
+        var calc = Math.floor(width / charW);
+        if (calc > 5) wrapLen = calc;
+    }
+
+    var html = [];
+    var lg = parseInt(tr.gappedTrace.leadingGaps || 0, 10);
+    var len = refAlignString.length;
+    var maxX = tr.gappedTrace.peakA.length - 1;
+    checkWindow(maxX);
+
+    // Build a set of highlighted reference indices
+    var highlightIdx = {};
+    for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
+        var posVal = parseFloat(tr.gappedTrace.basecallPos[i]);
+        if (posVal >= winXst && posVal <= winXend) {
+            highlightIdx[i + lg] = true;
+        }
+    }
+
+    for (var j=0;j<len;j++){
+        if (j > 0 && j % wrapLen === 0) {
+            html.push('<br>');
+        }
+        var c = refAlignString.charAt(j);
+        var cls = highlightIdx[j] ? 'text-primary font-weight-bold' : '';
+        html.push('<span class="'+cls+'">'+escapeHtml(c)+'</span>');
+    }
+    view.innerHTML = html.join('');
+}
+
+// Highlight update wrapper
+function updateHighlight(tr){
+    renderSeqView(tr);
+    renderRefView(tr);
+}
+
+// Copy bases currently visible in the trace window
+function copyViewRange() {
+    if (!allResults || !allResults.gappedTrace || !allResults.gappedTrace.basecallPos || !traceSeqString) return;
+    var len = Math.min(traceSeqString.length, allResults.gappedTrace.basecallPos.length);
+    var startIdx = 0;
+    while (startIdx < len && parseFloat(allResults.gappedTrace.basecallPos[startIdx]) < winXst) startIdx++;
+    var endIdx = startIdx;
+    while (endIdx < len && parseFloat(allResults.gappedTrace.basecallPos[endIdx]) <= winXend) endIdx++;
+    var textToCopy = traceSeqString.slice(startIdx, endIdx);
+    doCopy(textToCopy);
+}
+
+// Copy full chromatogram sequence
+function copyFull() {
+    doCopy(traceSeqString || "");
+}
+
+// Copy visible reference (aligned, gapped)
+function copyRefViewRange(){
+    if (!refAlignString || !allResults || !allResults.gappedTrace) return;
+    var lg = parseInt(allResults.gappedTrace.leadingGaps || 0, 10);
+    var len = refAlignString.length;
+    var startIdx = len;
+    var endIdx = 0;
+    for (var i = 0; i < allResults.gappedTrace.basecallPos.length; i++) {
+        var posVal = parseFloat(allResults.gappedTrace.basecallPos[i]);
+        if (posVal >= winXst && posVal <= winXend) {
+            var refIdx = i + lg;
+            startIdx = Math.min(startIdx, refIdx);
+            endIdx = Math.max(endIdx, refIdx);
+        }
+    }
+    if (startIdx > endIdx) return;
+    var textToCopy = refAlignString.slice(startIdx, endIdx + 1).replace(/-/g,"");
+    doCopy(textToCopy);
+}
+
+// Copy full reference (gapless)
+function copyRefFull(){
+    doCopy(refSeqGapless || "");
+}
+
+// Clipboard helpers
+function doCopy(text) {
+    if (!text) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(function(){ fallbackCopy(text); });
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'absolute';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+}
+
+// Escape helper
+function escapeHtml(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
