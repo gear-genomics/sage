@@ -17,7 +17,7 @@
 //    "refchr": "example",    // Optional
 //    "refpos": 32,           // Optional (genomic start)
 //    "refalign": "CCCGGC...",// Optional, gapped to match leading/trailing gaps
-//    "forward": 1            // Optional (1=fwd, 0=rev)
+//    "forward": 1            // Optional (1=fwd, 0=rev) 
 //  }
 //
 
@@ -365,16 +365,14 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
         }
     }
 
+    // Track min/max reference indices (gapped) for visible bases
+    var minRefIdx = null;
+    var maxRefIdx = null;
+
     // The X-Axis
-    var firstBase = -1;
-    var lastBase = -1;
     for (var i = 0; i < tr.gappedTrace.basecallPos.length; i++) {
         var posVal = parseFloat(tr.gappedTrace.basecallPos[i]);
         if ((posVal > startX) && (posVal < endX)) {
-            if (firstBase === -1) {
-                firstBase = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]];
-            }
-            lastBase = tr.gappedTrace.basecalls[tr.gappedTrace.basecallPos[i]];
             var xPos = wdXst + (posVal - startX) / (endX - startX)  * (wdXend - wdXst);
             var baseChar = prim.charAt(i);
             var qual = (tr.gappedTrace.basecallQual && tr.gappedTrace.basecallQual.length > i) ? tr.gappedTrace.basecallQual[i] : "";
@@ -403,36 +401,57 @@ function createCoodinates (tr,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
                 retVal +=  "</text>";
             }
             retVal += "</g>";
+
+            // Update min/max reference indices for labels
+            if (tr.hasOwnProperty('refalign')) {
+                var refIdx = (parseInt(tr.gappedTrace.leadingGaps || 0, 10)) + i; // 0-based within refalign
+                if (minRefIdx === null || refIdx < minRefIdx) minRefIdx = refIdx;
+                if (maxRefIdx === null || refIdx > maxRefIdx) maxRefIdx = refIdx;
+            }
         }
+    }
+
+    // Helper: count non-gap bases up to index (inclusive) in refalign
+    function refOffset(refalign, idx) {
+        if (!refalign || idx === null || idx === undefined) return null;
+        var cnt = 0;
+        for (var k = 0; k <= idx && k < refalign.length; k++) {
+            if (refalign.charAt(k) !== '-') cnt++;
+        }
+        return cnt > 0 ? cnt - 1 : null; // 0-based offset
     }
 
     var refOrient = "";
     if(tr.hasOwnProperty('forward')){
-        if(tr.forward == 1) {
-            if(tr.hasOwnProperty('refpos')){
-                firstBase = parseInt(tr.refpos) + parseInt(firstBase);
-                lastBase = parseInt(tr.refpos) + parseInt(lastBase);
-                retVal += "<text x='-5' y='" + (lineYend + 71);
-                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
-                retVal += firstBase + "</text>";
-                retVal += "<text x='1005' y='" + (lineYend + 71);
-                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='start'>";
-                retVal += lastBase + "</text>";
+        var isRev = !(tr.forward == 1 || tr.forward === "1" || tr.forward === true);
+        if(tr.hasOwnProperty('refpos') && minRefIdx !== null && maxRefIdx !== null){
+            var refposInt = parseInt(tr.refpos, 10);
+            if (isFinite(refposInt)) {
+                var lenGapless = refSeqGapless ? refSeqGapless.length :
+                                 (tr.refalign ? tr.refalign.replace(/-/g,"").length : 0);
+                var offMin = refOffset(tr.refalign, minRefIdx);
+                var offMax = refOffset(tr.refalign, maxRefIdx);
+                if (offMin !== null && offMax !== null) {
+                    var leftLabel, rightLabel;
+                    if (!isRev) {
+                        leftLabel = refposInt + offMin;
+                        rightLabel = refposInt + offMax;
+                    } else {
+                        // Reverse: genomic coords decrease along the trace to the right.
+                        // Left edge shows higher coord, right edge lower coord.
+                        leftLabel  = refposInt + (lenGapless - 1 - offMin);
+                        rightLabel = refposInt + (lenGapless - 1 - offMax);
+                    }
+                    retVal += "<text x='-5' y='" + (lineYend + 71);
+                    retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
+                    retVal += leftLabel + "</text>";
+                    retVal += "<text x='1005' y='" + (lineYend + 71);
+                    retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='start'>";
+                    retVal += rightLabel + "</text>";
+                }
             }
-            refOrient = " - forward";
-        } else {
-            if(tr.hasOwnProperty('refpos')){
-                firstBase = parseInt(tr.refpos) - parseInt(firstBase);
-                lastBase = parseInt(tr.refpos) - parseInt(lastBase);
-                retVal += "<text x='-5' y='" + (lineYend + 71);
-                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='end'>";
-                retVal += firstBase + "</text>";
-                retVal += "<text x='1005' y='" + (lineYend + 71);
-                retVal += "' font-family='Arial' font-size='10' fill='black' text-anchor='start'>";
-                retVal += lastBase + "</text>";
-            }
-            refOrient = " - reverse";
         }
+        refOrient = isRev ? " - reverse" : " - forward";
     }
     if(tr.hasOwnProperty('refchr')){
         retVal += "<text x='500' y='" + (lineYend + 100);
@@ -510,7 +529,7 @@ function createOneCalls(trace,col,startX,endX,endY,wdXst,wdXend,wdYst,wdYend){
 function errorMessage(err) {
     deleteContent();
     var html = '<div id="traceView-error" class="alert alert-danger" role="alert">';
-    html += '  <i class="fas fa-fire"></i>';
+    html += '  <i class="fas a-fire"></i>';
     html += '  <span id="error-message">' + err;
     html += '  </span>';
     html += '</div>';
