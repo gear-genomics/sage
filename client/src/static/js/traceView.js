@@ -291,7 +291,7 @@ export default class TraceViewElement extends HTMLElement {
             this.refSeqGapless = this.refAlignString.replace(/-/g, "");
             var outField2 = this.#el('traceView-refSeq');
             outField2.value = this.refSeqGapless;
-            var refSeq = this.#el('traceView-refSeqView');
+            var refSeq = this.#el('traceView-Reference');
             this.#showElement(refSeq);
         } else {
             this.refAlignString = "";
