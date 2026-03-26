@@ -282,7 +282,7 @@ export default class TraceViewElement extends HTMLElement {
             var pos = base.indexOf(":");
             seq += base.charAt(pos + 1);
         }
-        this.traceSeqString = seq.replace(/-/g,"");
+        this.traceSeqString = seq;
         this.#el('traceView-traceSeq').value = this.traceSeqString;
         this.#showElement(this.#el('traceView-Sequence'));
 
