@@ -25,6 +25,15 @@ const targetGenomes = document.getElementById('target-genome')
 const targetTabs = document.getElementById('target-tabs')
 const resultInfo = document.getElementById('result-info')
 const resultError = document.getElementById('result-error')
+const TRIM_MIN = 1
+const TRIM_MAX = 1000
+
+const GENOME_VALUE_RE = /^[A-Za-z0-9._-]{1,128}$/
+
+function showValidationError(msg) {
+  showElement(resultError)
+  resultError.querySelector('#error-message').textContent = msg
+}
 
 function showExample() {
   run("example")
@@ -34,33 +43,57 @@ function showUpload() {
   run("data")
 }
 
-// TODO client-side validation
 function run(stat) {
   resultLink.click()
+  hideElement(resultError)
+  traceView.deleteContent()
+
   const formData = new FormData()
-  const lTrim = Number.parseInt(leftTrim.value, 10)
-  const rTrim = Number.parseInt(rightTrim.value, 10)
+  const lTrimRaw = document.getElementById('leftTrim').value
+  const rTrimRaw = document.getElementById('rightTrim').value
+  const lTrim = Number.parseInt(lTrimRaw, 10)
+  const rTrim = Number.parseInt(rTrimRaw, 10)
+  if ( (!Number.isInteger(lTrim)) || (lTrim < TRIM_MIN) || (lTrim > TRIM_MAX) ) {
+    showValidationError(`Left trim must be an integer between ${TRIM_MIN} and ${TRIM_MAX}.`)
+    return
+  }
+  if ( (!Number.isInteger(rTrim)) || (rTrim < TRIM_MIN) || (rTrim > TRIM_MAX) ) {
+    showValidationError(`Right trim must be an integer between ${TRIM_MIN} and ${TRIM_MAX}.`)
+    return
+  }    
   formData.append('leftTrim', lTrim)
   formData.append('rightTrim', rTrim)
-  if (stat == "example") {
+  if (stat === "example") {
     formData.append('showExample', 'showExample')
   } else {
+    if ( (!inputFile.files) || (inputFile.files.length === 0) ) {
+      showValidationError('Please select a chromatogram file.')
+      return
+    }
     formData.append('queryFile', inputFile.files[0])
     const target = targetTabs.querySelector('a.active').id
-
     if (target.startsWith('target-genome')) {
-      const genome = targetGenomes.querySelector('option:checked').value
-      formData.append('genome', genome)
+      const genomeVal = targetGenomes.querySelector('option:checked').value
+      if (!GENOME_VALUE_RE.test(genomeVal)) {
+        showValidationError('Invalid genome selection.')
+	return
+      }
+      formData.append('genome', genomeVal)
     } else if (target.startsWith('target-fasta')) {
+      if ( (!targetFastaFile.files) || (targetFastaFile.files.length === 0) ) {
+        showValidationError('Please select a FASTA reference file.')
+        return
+      }
       formData.append('fastaFile', targetFastaFile.files[0])
     } else if (target.startsWith('target-chromatogram')) {
+      if ( (!targetChromatogramFile.files) || (targetChromatogramFile.files.length === 0) ) {
+	showValidationError('Please select a wildtype chromatogram file.')
+	return
+      }
       formData.append('chromatogramFile', targetChromatogramFile.files[0])
     }
   }
   
-  traceView.deleteContent()
-  hideElement(resultError)
-  traceView.deleteContent()
   showElement(resultInfo)
 
   axios
