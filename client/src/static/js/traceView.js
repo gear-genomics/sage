@@ -17,7 +17,7 @@
 //    "refchr": "example",    // Optional
 //    "refpos": 32,           // Optional (genomic start)
 //    "refalign": "CCCGGC...",// Optional, gapped to match leading/trailing gaps
-//    "forward": 1            // Optional (1=fwd, 0=rev) 
+//    "forward": 1            // Optional (1=fwd, 0=rev)
 //  }
 //
 
@@ -75,7 +75,8 @@ export default class TraceViewElement extends HTMLElement {
         html += '<div id="traceView-Traces"></div>';
         html += '<div id="traceView-tooltip" class="traceView-tooltip d-none" style="position:absolute; pointer-events:none; background:rgba(255,255,255,0.95); border:1px solid #ccc; border-radius:4px; padding:6px; font-size:12px;"></div>';
         html += '<div id="traceView-Sequence" class="d-none">';
-        html += '  <hr>\n  <p>Chromatogram Sequence:</p>';
+        html += '  <hr>';
+        html += '  <div id="traceView-Sequence-header"><p>Chromatogram Sequence:</p></div>';
         html += '  <div id="traceView-traceSeqView" class="form-control" style="white-space: pre-wrap; font-family: monospace; min-height: 7em; cursor: text;"></div>';
         html += '  <div class="mt-1 d-flex align-items-center">';
         html += '    <button id="traceView-copy-view" class="btn btn-sm btn-outline-secondary mr-2">Copy view range</button>';
@@ -84,7 +85,8 @@ export default class TraceViewElement extends HTMLElement {
         html += '  <textarea id="traceView-traceSeq" class="d-none" readonly></textarea>';
         html += '</div>';
         html += '<div id="traceView-Reference" class="d-none">';
-        html += '  <hr>\n  <p>Reference Sequence:</p>';
+        html += '  <hr>';
+        html += '  <div id="traceView-Reference-header"><p>Reference Sequence:</p></div>';
         html += '  <div id="traceView-refSeqView" class="form-control" style="white-space: pre-wrap; font-family: monospace; min-height: 7em;"></div>';
         html += '  <div class="mt-1 d-flex align-items-center">';
         html += '    <button id="traceView-ref-copy-view" class="btn btn-sm btn-outline-secondary mr-2">Copy view range</button>';
@@ -317,9 +319,9 @@ export default class TraceViewElement extends HTMLElement {
         retVal += "</svg>";
         var head;
         if (tr.hasOwnProperty('refalign')) {
-            head = "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='360' viewBox='-60 -40 1200 360'>";
+            head = "<svg xmlns='http://www.w3.org/2000/svg' width='100%' viewBox='-60 -40 1200 360'>";
         } else {
-            head = "<svg xmlns='http://www.w3.org/2000/svg' width='1200' height='300' viewBox='-60 -40 1200 300'>";
+            head = "<svg xmlns='http://www.w3.org/2000/svg' width='100%' viewBox='-60 -40 1200 300'>";
         }
         return head + retVal;
     }
@@ -522,9 +524,35 @@ export default class TraceViewElement extends HTMLElement {
         trTrc.innerHTML = html;
     }
 
+    // Harmonize teal and sage
+    #normalizeData(res) {
+        if (!res || typeof res !== 'object') return res;
+        if (res.hasOwnProperty('gappedTrace')) return res;
+        if (!res.hasOwnProperty('peakA')) return res;
+        var out = {
+            gappedTrace: {
+                traceFileName: res.traceFileName || "",
+                leadingGaps: 0,
+                trailingGaps: 0,
+                peakA: res.peakA,
+                peakC: res.peakC,
+                peakG: res.peakG,
+                peakT: res.peakT,
+                basecallPos: res.basecallPos,
+                basecallQual: res.basecallQual,
+                basecalls: res.basecalls
+            }
+        };
+        if (res.hasOwnProperty('refchr'))   out.refchr   = res.refchr;
+        if (res.hasOwnProperty('refpos'))   out.refpos   = res.refpos;
+        if (res.hasOwnProperty('refalign')) out.refalign = res.refalign;
+        if (res.hasOwnProperty('forward'))  out.forward  = res.forward;
+        return out;
+    }
+
     displayData(res) {
         this.#resetGlobalValues();
-        this.allResults = res;
+        this.allResults = this.#normalizeData(res);
 
         if (!this.allResults || !this.allResults.hasOwnProperty('gappedTrace')) {
             this.#errorMessage('Bad JSON data: gappedTrace object missing!');
@@ -816,6 +844,15 @@ export default class TraceViewElement extends HTMLElement {
             html.push('<span data-idx="'+i+'" class="'+cls+'">' + this.#escapeHtml(b) + '</span>');
         }
         view.innerHTML = html.join('');
+        this.#centerSeqViewOnHighlight(view);
+    }
+
+    #centerSeqViewOnHighlight(view) {
+        var first = view.querySelector('span.text-primary');
+        if (!first) return;
+        if (view.scrollHeight <= view.clientHeight) return;
+        var target = first.offsetTop - (view.clientHeight / 2) + (first.offsetHeight / 2);
+        view.scrollTop = Math.max(0, target);
     }
 
     // Reference render and highlight (gapped reference, aligned to trace)
